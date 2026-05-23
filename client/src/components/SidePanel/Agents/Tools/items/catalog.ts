@@ -86,7 +86,7 @@ export function buildCatalog(inputs: BuildCatalogInputs): AgentItem[] {
         kind: 'mcp',
         id: name,
         name,
-        description: '',
+        description: server.metadata?.description ?? '',
         iconKey: 'mcp',
         server,
         toolCount: server.tools?.length ?? 0,
