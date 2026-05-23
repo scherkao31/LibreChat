@@ -16,8 +16,28 @@ describe('AgentItem types', () => {
     }
   });
 
-  test('AgentItemKind enumerates all five kinds', () => {
+  test('every AgentItemKind is exhaustively handled (type-level + runtime)', () => {
+    const label = (k: AgentItemKind): string => {
+      switch (k) {
+        case 'builtin':
+          return 'builtin';
+        case 'tool':
+          return 'tool';
+        case 'mcp':
+          return 'mcp';
+        case 'skill':
+          return 'skill';
+        case 'action':
+          return 'action';
+        default: {
+          const _exhaustive: never = k;
+          return _exhaustive;
+        }
+      }
+    };
+
     const kinds: AgentItemKind[] = ['builtin', 'tool', 'mcp', 'skill', 'action'];
+    expect(kinds.map(label)).toEqual(['builtin', 'tool', 'mcp', 'skill', 'action']);
     expect(new Set(kinds).size).toBe(5);
   });
 });

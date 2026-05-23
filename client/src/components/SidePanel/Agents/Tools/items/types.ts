@@ -3,59 +3,48 @@ import type { MCPServerInfo } from '~/common';
 
 export type AgentItemKind = 'builtin' | 'tool' | 'mcp' | 'skill' | 'action';
 
+/**
+ * Literal IDs for built-in agent capabilities. Mirrors string values of
+ * `AgentCapabilities` in librechat-data-provider — keep in sync if either
+ * side adds, removes, or renames a member.
+ */
 export type BuiltinId = 'execute_code' | 'web_search' | 'file_search' | 'artifacts' | 'context';
 
 export type AgentItemStatus = 'ready' | 'needs_setup' | 'disabled';
 
-export interface BuiltinItem {
+interface ItemBase {
+  id: string;
+  name: string;
+  description: string;
+  iconKey: string;
+  status?: AgentItemStatus;
+}
+
+export interface BuiltinItem extends ItemBase {
   kind: 'builtin';
   id: BuiltinId;
-  name: string;
-  description: string;
-  iconKey: string;
-  status?: AgentItemStatus;
 }
 
-export interface ToolItem {
+export interface ToolItem extends ItemBase {
   kind: 'tool';
-  id: string;
-  name: string;
-  description: string;
-  iconKey: string;
   plugin: TPlugin;
-  status?: AgentItemStatus;
 }
 
-export interface McpItem {
+export interface McpItem extends ItemBase {
   kind: 'mcp';
-  id: string;
-  name: string;
-  description: string;
-  iconKey: string;
   server: MCPServerInfo;
   toolCount: number;
-  status?: AgentItemStatus;
 }
 
-export interface SkillItem {
+export interface SkillItem extends ItemBase {
   kind: 'skill';
-  id: string;
-  name: string;
-  description: string;
-  iconKey: string;
   skill: TSkillSummary;
-  status?: AgentItemStatus;
 }
 
-export interface ActionItem {
+export interface ActionItem extends ItemBase {
   kind: 'action';
-  id: string;
-  name: string;
-  description: string;
-  iconKey: string;
   action: Action;
   endpointCount: number;
-  status?: AgentItemStatus;
 }
 
 export type AgentItem = BuiltinItem | ToolItem | McpItem | SkillItem | ActionItem;
