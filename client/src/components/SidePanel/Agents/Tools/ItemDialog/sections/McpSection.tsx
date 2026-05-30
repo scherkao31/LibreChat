@@ -2,10 +2,12 @@ import { useFormContext } from 'react-hook-form';
 import { Checkbox } from '@librechat/client';
 import { Constants } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
+import type { TranslationKeys } from '~/hooks/useLocalize';
 import type { McpItem } from '../../items/types';
 import MCPToolItem from '../../../MCPToolItem';
 import MCPConfigDialog from '~/components/MCP/MCPConfigDialog';
 import MCPServerStatusIcon from '~/components/MCP/MCPServerStatusIcon';
+import { useAgentPanelContext } from '~/Providers';
 import {
   useAgentCapabilities,
   useGetAgentsConfig,
@@ -13,6 +15,38 @@ import {
   useMCPToolOptions,
 } from '~/hooks';
 import { useLocalize } from '~/hooks';
+import { cn } from '~/utils';
+
+interface StatusDisplay {
+  labelKey: TranslationKeys;
+  dotClass: string;
+}
+
+function getStatusDisplay(
+  connectionState: string | undefined,
+  isInitializing: boolean,
+  isConfigured: boolean,
+): StatusDisplay {
+  if (isInitializing || connectionState === 'connecting') {
+    return {
+      labelKey: 'com_nav_mcp_status_initializing',
+      dotClass: 'bg-blue-500 animate-pulse',
+    };
+  }
+  if (connectionState === 'connected') {
+    return { labelKey: 'com_nav_mcp_status_connected', dotClass: 'bg-emerald-500' };
+  }
+  if (connectionState === 'error') {
+    return { labelKey: 'com_nav_mcp_status_error', dotClass: 'bg-red-500' };
+  }
+  if (connectionState === 'disconnected') {
+    return { labelKey: 'com_nav_mcp_status_disconnected', dotClass: 'bg-amber-500' };
+  }
+  if (!isConfigured) {
+    return { labelKey: 'com_ui_tools_mcp_status_unconfigured', dotClass: 'bg-gray-400' };
+  }
+  return { labelKey: 'com_nav_mcp_status_unknown', dotClass: 'bg-gray-400' };
+}
 
 interface Props {
   item: McpItem;
@@ -22,6 +56,7 @@ export default function McpSection({ item }: Props) {
   const localize = useLocalize();
   const { getValues, setValue } = useFormContext<AgentForm>();
   const { getServerStatusIconProps, getConfigDialogProps } = useMCPServerManager();
+  const { mcpServersMap } = useAgentPanelContext();
   const { agentsConfig } = useGetAgentsConfig();
   const { deferredToolsEnabled, programmaticToolsEnabled } = useAgentCapabilities(
     agentsConfig?.capabilities,
@@ -30,7 +65,11 @@ export default function McpSection({ item }: Props) {
     useMCPToolOptions();
 
   const serverName = item.server.serverName;
-  const tools = item.server.tools ?? [];
+  const serverToken = `${Constants.mcp_server}${Constants.mcp_delimiter}${serverName}`;
+  /** Live server data — `item.server` is a snapshot from card click and goes stale once
+   * the MCP query refetches (e.g., after a server connects), so read from the live map. */
+  const liveServer = mcpServersMap.get(serverName) ?? item.server;
+  const tools = liveServer.tools ?? [];
   const hasTools = tools.length > 0;
 
   const getSelectedTools = (): string[] => {
@@ -38,9 +77,13 @@ export default function McpSection({ item }: Props) {
     return tools.filter((t) => formTools.includes(t.tool_id)).map((t) => t.tool_id);
   };
 
+  /** Replace this server's selection. Strips every tool_id AND the server-level
+   * placeholder token, so passing `[]` fully detaches the server. */
   const updateFormTools = (next: string[]) => {
     const current = (getValues('tools') ?? []) as string[];
-    const otherTools = current.filter((t) => !tools.some((st) => st.tool_id === t));
+    const otherTools = current.filter(
+      (t) => t !== serverToken && !tools.some((st) => st.tool_id === t),
+    );
     setValue('tools', [...otherTools, ...next], { shouldDirty: true });
   };
 
@@ -53,16 +96,18 @@ export default function McpSection({ item }: Props) {
   };
 
   const toggleAll = (checked: boolean) => {
-    const next = checked
-      ? tools.map((t) => t.tool_id)
-      : [`${Constants.mcp_server}${Constants.mcp_delimiter}${serverName}`];
-    updateFormTools(next);
+    updateFormTools(checked ? tools.map((t) => t.tool_id) : []);
   };
 
   const selectedTools = getSelectedTools();
   const allSelected = hasTools && selectedTools.length === tools.length;
   const statusIconProps = getServerStatusIconProps(serverName);
   const configDialogProps = getConfigDialogProps();
+  const statusDisplay = getStatusDisplay(
+    statusIconProps?.serverStatus?.connectionState,
+    statusIconProps?.isInitializing ?? false,
+    liveServer.isConfigured,
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -70,16 +115,18 @@ export default function McpSection({ item }: Props) {
         <p className="text-sm leading-relaxed text-text-secondary">{item.description}</p>
       )}
 
-      {statusIconProps && (
-        <div className="flex items-center justify-between rounded-xl border border-border-light bg-surface-secondary px-3 py-2.5">
+      <div className="flex items-center justify-between rounded-xl border border-border-light bg-surface-secondary px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn('size-2.5 rounded-full', statusDisplay.dotClass)}
+            aria-hidden="true"
+          />
           <span className="text-sm font-medium text-text-primary">
-            {item.server.isConfigured
-              ? localize('com_ui_tools_mcp_status_configured')
-              : localize('com_ui_tools_mcp_status_unconfigured')}
+            {localize(statusDisplay.labelKey)}
           </span>
-          <MCPServerStatusIcon {...statusIconProps} />
         </div>
-      )}
+        {statusIconProps && <MCPServerStatusIcon {...statusIconProps} />}
+      </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">

@@ -1,6 +1,11 @@
-import { AgentCapabilities } from 'librechat-data-provider';
+import { AgentCapabilities, Constants } from 'librechat-data-provider';
 import { deriveSelectedItems } from '../selectors';
 import type { AgentItem } from '../types';
+
+const mcpServerToken = (serverName: string) =>
+  `${Constants.mcp_server}${Constants.mcp_delimiter}${serverName}`;
+const mcpToolToken = (toolName: string, serverName: string) =>
+  `${toolName}${Constants.mcp_delimiter}${serverName}`;
 
 const sampleCatalog: AgentItem[] = [
   { kind: 'builtin', id: 'execute_code', name: 'Code', description: '', iconKey: 'execute_code' },
@@ -95,6 +100,65 @@ describe('deriveSelectedItems', () => {
     expect(kinds).toContain('tool');
     expect(kinds).toContain('skill');
     expect(kinds).toContain('mcp');
+  });
+
+  test('treats a per-tool MCP token as selecting the server', () => {
+    const catalog: AgentItem[] = [
+      ...sampleCatalog,
+      {
+        kind: 'mcp',
+        id: 'srv',
+        name: 'srv',
+        description: '',
+        iconKey: 'mcp',
+        server: { serverName: 'srv', isConfigured: true, tools: [] } as never,
+        toolCount: 0,
+      },
+    ];
+    const result = deriveSelectedItems(
+      { ...emptyFormState, tools: [mcpToolToken('search', 'srv')] },
+      catalog,
+      [],
+    );
+    expect(result.find((i) => i.kind === 'mcp')?.id).toBe('srv');
+  });
+
+  test('treats a server represented only by its server token as detached', () => {
+    const catalog: AgentItem[] = [
+      ...sampleCatalog,
+      {
+        kind: 'mcp',
+        id: 'srv',
+        name: 'srv',
+        description: '',
+        iconKey: 'mcp',
+        server: { serverName: 'srv', isConfigured: true, tools: [] } as never,
+        toolCount: 0,
+      },
+    ];
+    const result = deriveSelectedItems(
+      { ...emptyFormState, tools: [mcpServerToken('srv')] },
+      catalog,
+      [],
+    );
+    expect(result.find((i) => i.kind === 'mcp')).toBeUndefined();
+  });
+
+  test('deselect-all (empty tools) leaves no MCP server selected', () => {
+    const catalog: AgentItem[] = [
+      ...sampleCatalog,
+      {
+        kind: 'mcp',
+        id: 'srv',
+        name: 'srv',
+        description: '',
+        iconKey: 'mcp',
+        server: { serverName: 'srv', isConfigured: true, tools: [] } as never,
+        toolCount: 0,
+      },
+    ];
+    const result = deriveSelectedItems({ ...emptyFormState, tools: [] }, catalog, []);
+    expect(result.find((i) => i.kind === 'mcp')).toBeUndefined();
   });
 
   test('selects all agent actions passed in', () => {

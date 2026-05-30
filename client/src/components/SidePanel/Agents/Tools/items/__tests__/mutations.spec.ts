@@ -1,5 +1,5 @@
 import { AgentCapabilities, ArtifactModes } from 'librechat-data-provider';
-import { computeToggleAction, applyTogglePatch } from '../mutations';
+import { computeToggleAction } from '../mutations';
 import type { AgentItem } from '../types';
 
 const builtinCode: AgentItem = {
@@ -34,6 +34,26 @@ const skill: AgentItem = {
   description: '',
   iconKey: 'skill',
   skill: { _id: 's1' } as never,
+};
+
+const mcp: AgentItem = {
+  kind: 'mcp',
+  id: 'srv',
+  name: 'srv',
+  description: '',
+  iconKey: 'mcp',
+  server: { serverName: 'srv', isConfigured: true, tools: [] } as never,
+  toolCount: 0,
+};
+
+const action: AgentItem = {
+  kind: 'action',
+  id: 'a1',
+  name: 'A1',
+  description: '',
+  iconKey: 'action',
+  action: { action_id: 'a1', agent_id: 'agt' } as never,
+  endpointCount: 1,
 };
 
 describe('computeToggleAction', () => {
@@ -86,40 +106,26 @@ describe('computeToggleAction', () => {
       id: 's1',
     });
   });
-});
 
-describe('applyTogglePatch', () => {
-  const baseForm = {
-    execute_code: false,
-    web_search: false,
-    file_search: false,
-    artifacts: '',
-    tools: [] as string[],
-    skills: [] as string[],
-  };
-
-  test('builtin patch updates the matching field', () => {
-    const next = applyTogglePatch(baseForm, {
-      type: 'builtin',
-      field: AgentCapabilities.execute_code,
-      value: true,
+  test('toggling an MCP server emits add/remove patches keyed by server name', () => {
+    expect(computeToggleAction(mcp, { selected: false })).toEqual({
+      type: 'mcp-add',
+      serverName: 'srv',
     });
-    expect(next.execute_code).toBe(true);
+    expect(computeToggleAction(mcp, { selected: true })).toEqual({
+      type: 'mcp-remove',
+      serverName: 'srv',
+    });
   });
 
-  test('tool-add appends without duplicates', () => {
-    const next = applyTogglePatch({ ...baseForm, tools: ['x'] }, { type: 'tool-add', id: 'y' });
-    expect(next.tools).toEqual(['x', 'y']);
-
-    const noop = applyTogglePatch(next, { type: 'tool-add', id: 'y' });
-    expect(noop.tools).toEqual(['x', 'y']);
-  });
-
-  test('tool-remove removes the id', () => {
-    const next = applyTogglePatch(
-      { ...baseForm, tools: ['x', 'y'] },
-      { type: 'tool-remove', id: 'x' },
-    );
-    expect(next.tools).toEqual(['y']);
+  test('toggling an action emits add/remove patches keyed by action id', () => {
+    expect(computeToggleAction(action, { selected: false })).toEqual({
+      type: 'action-add',
+      actionId: 'a1',
+    });
+    expect(computeToggleAction(action, { selected: true })).toEqual({
+      type: 'action-remove',
+      actionId: 'a1',
+    });
   });
 });

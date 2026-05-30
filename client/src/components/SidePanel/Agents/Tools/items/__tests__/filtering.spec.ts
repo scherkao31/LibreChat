@@ -1,4 +1,4 @@
-import { applyFilter } from '../filtering';
+import { applyFilter, matchesView } from '../filtering';
 import type { AgentItem } from '../types';
 
 const items: AgentItem[] = [
@@ -24,6 +24,7 @@ const items: AgentItem[] = [
     description: 'Review PRs',
     iconKey: 'skill',
     skill: { _id: 's1', name: 'Code Reviewer', category: 'code' } as never,
+    ownedByUser: true,
   },
   {
     kind: 'skill',
@@ -32,6 +33,7 @@ const items: AgentItem[] = [
     description: 'Write emails',
     iconKey: 'skill',
     skill: { _id: 's2', name: 'Marketing Email', category: 'marketing' } as never,
+    ownedByUser: false,
   },
 ];
 
@@ -67,5 +69,59 @@ describe('applyFilter', () => {
   test('combined filters apply intersection', () => {
     const result = applyFilter(items, { kind: 'skill', search: 'code' });
     expect(result.map((i) => i.id)).toEqual(['s1']);
+  });
+
+  test('marketplace view returns all items', () => {
+    expect(applyFilter(items, { view: 'marketplace' }).length).toBe(4);
+  });
+
+  test('"mine" view returns only items owned by the user', () => {
+    const result = applyFilter(items, { view: 'mine' });
+    expect(result.map((i) => i.id)).toEqual(['s1']);
+  });
+
+  test('"favorites" view returns only favorited ids', () => {
+    const result = applyFilter(items, { view: 'favorites' }, { favoritedIds: new Set(['dalle']) });
+    expect(result.map((i) => i.id)).toEqual(['dalle']);
+  });
+
+  test('"favorites" view with no favorited set returns nothing', () => {
+    expect(applyFilter(items, { view: 'favorites' }).length).toBe(0);
+  });
+
+  test('view filter intersects with kind and search', () => {
+    const result = applyFilter(items, { view: 'mine', kind: 'skill', search: 'reviewer' });
+    expect(result.map((i) => i.id)).toEqual(['s1']);
+  });
+});
+
+describe('matchesView', () => {
+  const ownedSkill = items[2];
+  const unownedSkill = items[3];
+  const tool = items[1];
+
+  test('marketplace view matches everything', () => {
+    expect(matchesView(tool, 'marketplace', {})).toBe(true);
+    expect(matchesView(ownedSkill, 'marketplace', {})).toBe(true);
+  });
+
+  test('undefined view matches everything', () => {
+    expect(matchesView(tool, undefined, {})).toBe(true);
+  });
+
+  test('"mine" matches only items flagged ownedByUser', () => {
+    expect(matchesView(ownedSkill, 'mine', {})).toBe(true);
+    expect(matchesView(unownedSkill, 'mine', {})).toBe(false);
+    expect(matchesView(tool, 'mine', {})).toBe(false);
+  });
+
+  test('"favorites" matches only ids in the favorited set', () => {
+    const context = { favoritedIds: new Set(['s1']) };
+    expect(matchesView(ownedSkill, 'favorites', context)).toBe(true);
+    expect(matchesView(unownedSkill, 'favorites', context)).toBe(false);
+  });
+
+  test('"favorites" matches nothing without a favorited set', () => {
+    expect(matchesView(ownedSkill, 'favorites', {})).toBe(false);
   });
 });

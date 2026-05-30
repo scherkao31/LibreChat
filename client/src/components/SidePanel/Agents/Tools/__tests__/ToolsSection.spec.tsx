@@ -1,3 +1,4 @@
+import React from 'react';
 import '@testing-library/jest-dom/extend-expect';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ToolsSection from '../ToolsSection';
@@ -27,6 +28,19 @@ jest.mock('~/Providers', () => ({
 
 jest.mock('~/data-provider', () => ({
   useListSkillsQuery: () => ({ data: { skills: [] } }),
+  useDeleteAgentAction: () => ({ mutate: jest.fn() }),
+}));
+
+jest.mock('~/hooks/MCP', () => ({
+  useRemoveMCPTool: () => ({ removeTool: jest.fn() }),
+}));
+
+jest.mock('@librechat/client', () => ({
+  useToastContext: () => ({ showToast: jest.fn() }),
+  Label: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
+  OGDialog: ({ open, children }: { open?: boolean; children?: React.ReactNode }) =>
+    open ? <div>{children}</div> : null,
+  OGDialogTemplate: () => null,
 }));
 
 jest.mock('../ToolsMarketplaceDialog', () => ({

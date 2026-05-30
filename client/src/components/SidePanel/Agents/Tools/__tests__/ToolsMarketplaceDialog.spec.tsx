@@ -40,6 +40,7 @@ jest.mock('~/hooks', () => ({
   useLocalize: () => (key: string) => key,
   useHasAccess: () => true,
   useCategories: () => ({ categories: [] }),
+  useAuthContext: () => ({ user: { id: 'u1' } }),
 }));
 
 jest.mock('@ariakit/react/menu', () => ({
@@ -47,7 +48,9 @@ jest.mock('@ariakit/react/menu', () => ({
 }));
 
 jest.mock('~/data-provider', () => ({
-  useListSkillsQuery: () => ({ data: { skills: [] } }),
+  useListSkillsQuery: () => ({ data: { skills: [] }, isLoading: false }),
+  useGetFavoritesQuery: () => ({ data: [] }),
+  useGetSkillFavoritesQuery: () => ({ data: [] }),
 }));
 
 jest.mock('react-router-dom', () => ({
@@ -65,6 +68,9 @@ jest.mock('@librechat/client', () => {
       asChild
         ? React.createElement(React.Fragment, null, children)
         : React.createElement('button', { onClick, type: 'button', ...rest }, children),
+    Input: React.forwardRef((props: any, ref: any) =>
+      React.createElement('input', { ...props, ref }),
+    ),
     DropdownPopup: ({ trigger }: { trigger: React.ReactNode }) =>
       React.createElement('div', null, trigger),
     OGDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
@@ -124,13 +130,6 @@ describe('ToolsMarketplaceDialog', () => {
     const input = screen.getByPlaceholderText('com_ui_tools_marketplace_search');
     fireEvent.change(input, { target: { value: 'zzz' } });
     expect(screen.getByText('com_ui_tools_search_no_results')).toBeInTheDocument();
-  });
-
-  test('clicking the close button calls onOpenChange(false)', () => {
-    const onOpenChange = jest.fn();
-    render(<ToolsMarketplaceDialog open onOpenChange={onOpenChange} agentId="a1" />);
-    fireEvent.click(screen.getAllByLabelText('com_ui_tools_close')[0]);
-    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   test('clicking an unselected tool card toggles it without opening the detail pane', () => {

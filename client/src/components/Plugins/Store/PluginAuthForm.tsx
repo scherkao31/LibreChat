@@ -1,9 +1,11 @@
 import { Save } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { HoverCard, HoverCardTrigger } from '@librechat/client';
-import { TPlugin, TPluginAuthConfig, TPluginAction } from 'librechat-data-provider';
-import PluginTooltip from './PluginTooltip';
+import { Button, Input, InfoHoverCard, ESide } from '@librechat/client';
+import type { TPlugin, TPluginAuthConfig, TPluginAction } from 'librechat-data-provider';
 import { useLocalize } from '~/hooks';
+import { cn } from '~/utils';
+
+const stripHtml = (value: string): string => value.replace(/<[^>]*>/g, '').trim();
 
 type TPluginAuthFormProps = {
   plugin: TPlugin | undefined;
@@ -22,95 +24,78 @@ function PluginAuthForm({ plugin, onSubmit, isEntityTool }: TPluginAuthFormProps
   const authConfig = plugin?.authConfig ?? [];
   const allFieldsOptional = authConfig.length > 0 && authConfig.every((c) => c.optional === true);
 
+  const submit = handleSubmit((auth) =>
+    onSubmit({
+      pluginKey: plugin?.pluginKey ?? '',
+      action: 'install',
+      auth,
+      isEntityTool,
+    }),
+  );
+
   return (
-    <div className="flex w-full flex-col items-center gap-2">
-      <div className="grid w-full gap-6 sm:grid-cols-2">
-        <form
-          className="col-span-1 flex w-full flex-col items-start justify-start gap-2"
-          method="POST"
-          onSubmit={handleSubmit((auth) =>
-            onSubmit({
-              pluginKey: plugin?.pluginKey ?? '',
-              action: 'install',
-              auth,
-              isEntityTool,
-            }),
-          )}
-        >
-          {authConfig.map((config: TPluginAuthConfig, i: number) => {
-            const authField = config.authField.split('||')[0];
-            const isOptional = config.optional === true;
-            return (
-              <div key={`${authField}-${i}`} className="flex w-full flex-col gap-1">
-                <label
-                  htmlFor={authField}
-                  className="mb-1 text-left text-sm font-medium text-gray-700/70 dark:text-gray-50/70"
-                >
-                  {config.label}
-                </label>
-                <HoverCard openDelay={300}>
-                  <HoverCardTrigger className="grid w-full items-center gap-2">
-                    <input
-                      type="text"
-                      autoComplete="off"
-                      id={authField}
-                      aria-invalid={!!errors[authField]}
-                      aria-describedby={`${authField}-error`}
-                      aria-label={config.label}
-                      aria-required={!isOptional}
-                      /* autoFocus is generally disabled due to the fact that it can disorient users,
-                       * but in this case, the required field must be navigated to anyways, and the component's functionality
-                       * emulates that of a new modal opening, where users would expect focus to be shifted to the new content */
-                      // eslint-disable-next-line jsx-a11y/no-autofocus
-                      autoFocus={i === 0}
-                      {...register(
-                        authField,
-                        isOptional
-                          ? {}
-                          : {
-                              required: `${config.label} is required.`,
-                              minLength: {
-                                value: 1,
-                                message: `${config.label} must be at least 1 character long`,
-                              },
-                            },
-                      )}
-                      className="flex h-10 max-h-10 w-full resize-none rounded-md border border-gray-200 bg-transparent px-3 py-2 text-sm text-gray-700 shadow-[0_0_10px_rgba(0,0,0,0.05)] outline-none placeholder:text-gray-400 focus:border-gray-400 focus:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-gray-400 focus:ring-opacity-0 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-500 dark:bg-gray-700 dark:text-gray-50 dark:shadow-[0_0_15px_rgba(0,0,0,0.10)] dark:focus:border-gray-400 focus:dark:bg-gray-600 dark:focus:outline-none dark:focus:ring-0 dark:focus:ring-gray-400 dark:focus:ring-offset-0"
-                    />
-                  </HoverCardTrigger>
-                  <PluginTooltip content={config.description} position="right" />
-                </HoverCard>
-                {errors[authField] && (
-                  <span role="alert" className="mt-1 text-sm text-red-400">
-                    {String(errors?.[authField]?.message ?? '')}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-          <button
-            disabled={allFieldsOptional ? isSubmitting : !isDirty || !isValid || isSubmitting}
-            type="button"
-            className="btn btn-primary relative"
-            onClick={() => {
-              handleSubmit((auth) =>
-                onSubmit({
-                  pluginKey: plugin?.pluginKey ?? '',
-                  action: 'install',
-                  auth,
-                  isEntityTool,
-                }),
-              )();
-            }}
-          >
-            <div className="flex items-center justify-center gap-2">
-              {localize('com_ui_save')}
-              <Save className="flex h-4 w-4 items-center stroke-2" aria-hidden="true" />
+    <form className="flex w-full flex-col gap-4" method="POST" onSubmit={submit}>
+      {authConfig.map((config: TPluginAuthConfig, i: number) => {
+        const authField = config.authField.split('||')[0];
+        const isOptional = config.optional === true;
+        const error = errors[authField];
+        const hint = config.description ? stripHtml(config.description) : '';
+        return (
+          <div key={`${authField}-${i}`} className="flex w-full flex-col gap-2">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor={authField} className="text-sm font-medium text-text-primary">
+                {config.label}
+              </label>
+              {hint ? <InfoHoverCard side={ESide.Top} text={hint} /> : null}
             </div>
-          </button>
-        </form>
-      </div>
-    </div>
+            <Input
+              type="text"
+              autoComplete="off"
+              id={authField}
+              aria-invalid={!!error}
+              aria-describedby={error ? `${authField}-error` : undefined}
+              aria-label={config.label}
+              aria-required={!isOptional}
+              /* autoFocus is generally disabled due to the fact that it can disorient users,
+               * but in this case, the required field must be navigated to anyways, and the component's functionality
+               * emulates that of a new modal opening, where users would expect focus to be shifted to the new content */
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus={i === 0}
+              {...register(
+                authField,
+                isOptional
+                  ? {}
+                  : {
+                      required: `${config.label} is required.`,
+                      minLength: {
+                        value: 1,
+                        message: `${config.label} must be at least 1 character long`,
+                      },
+                    },
+              )}
+              className={cn(
+                error &&
+                  'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/40',
+              )}
+            />
+            {error ? (
+              <span id={`${authField}-error`} role="alert" className="text-xs text-red-500">
+                {String(error.message ?? '')}
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
+      <Button
+        type="submit"
+        variant="submit"
+        disabled={allFieldsOptional ? isSubmitting : !isDirty || !isValid || isSubmitting}
+        className="h-10 w-full gap-2 rounded-xl"
+      >
+        <Save className="h-4 w-4" aria-hidden="true" />
+        {localize('com_ui_save')}
+      </Button>
+    </form>
   );
 }
 

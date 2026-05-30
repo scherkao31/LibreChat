@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import debounce from 'lodash/debounce';
 import { useFormContext } from 'react-hook-form';
-import { Spinner, useToastContext } from '@librechat/client';
+import { Button, Spinner, Textarea, useToastContext } from '@librechat/client';
 import {
   validateAndParseOpenAPISpec,
   openapiToFunction,
@@ -33,10 +33,12 @@ export default function ActionsInput({
   action,
   agent_id,
   setAction,
+  onCreated,
 }: {
   action?: Action;
   agent_id?: string;
   setAction: React.Dispatch<React.SetStateAction<Action | undefined>>;
+  onCreated?: () => void;
 }) {
   const handleResult = (result: ValidationResult) => {
     if (!result.status) {
@@ -86,12 +88,16 @@ export default function ActionsInput({
 
   const updateAgentAction = useUpdateAgentAction({
     onSuccess(data) {
+      const wasCreate = !action?.action_id;
       showToast({
         message: localize('com_assistants_update_actions_success'),
         status: 'success',
       });
       reset();
       setAction(data[1]);
+      if (wasCreate) {
+        onCreated?.();
+      }
     },
     onError(error) {
       showToast({
@@ -213,13 +219,13 @@ export default function ActionsInput({
         </div>
         <div className="border-token-border-medium bg-token-surface-primary hover:border-token-border-hover mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border ring-0">
           <div className="relative flex min-h-0 flex-1 flex-col">
-            <textarea
+            <Textarea
               id="schemaInput"
               value={inputValue}
               onChange={handleInputChange}
               spellCheck="false"
               placeholder={localize('com_ui_enter_openapi_schema')}
-              className="text-token-text-primary block min-h-[12rem] flex-1 resize-y bg-transparent p-2 font-mono text-xs outline-none focus:ring-1 focus:ring-border-light"
+              className="min-h-[12rem] flex-1 resize-y rounded-none border-0 p-2 font-mono text-xs focus-visible:ring-0"
             />
           </div>
           {validationResult && validationResult.message !== 'OpenAPI spec is valid.' && (
@@ -243,28 +249,17 @@ export default function ActionsInput({
       )}
       <div className="relative my-1">
         <ActionCallback action_id={action?.action_id} />
-        <div className="mb-1.5 flex items-center">
-          <label className="text-token-text-primary block text-sm font-medium">
-            {localize('com_ui_privacy_policy_url')}
-          </label>
-        </div>
-        <div className="border-token-border-medium bg-token-surface-primary hover:border-token-border-hover flex h-9 w-full rounded-lg border">
-          <input
-            type="text"
-            placeholder="https://api.example-weather-app.com/privacy"
-            className="flex-1 rounded-lg bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-text-secondary-alt focus:ring-1 focus:ring-border-light"
-          />
-        </div>
       </div>
       <div className="mt-auto flex items-center justify-end pt-2">
-        <button
-          disabled={!functions || !functions.length}
-          onClick={saveAction}
-          className="focus:shadow-outline flex min-w-[100px] items-center justify-center rounded bg-green-500 px-4 py-2 font-semibold text-white hover:bg-green-400 focus:border-green-500 focus:outline-none focus:ring-0 disabled:bg-green-400"
+        <Button
           type="button"
+          variant="submit"
+          onClick={saveAction}
+          disabled={!functions || !functions.length}
+          className="min-w-[100px]"
         >
           {getButtonContent()}
-        </button>
+        </Button>
       </div>
     </>
   );

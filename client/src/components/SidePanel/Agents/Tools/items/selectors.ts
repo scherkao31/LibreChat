@@ -1,3 +1,4 @@
+import { Constants } from 'librechat-data-provider';
 import type { Action } from 'librechat-data-provider';
 import type { AgentItem, AgentItemKind } from './types';
 
@@ -39,12 +40,27 @@ function isToolSelected(item: AgentItem, form: FormSelection): boolean {
   return form.tools.includes(item.id);
 }
 
+/**
+ * Server-level placeholder token (`sys__server__sys_mcp_<serverName>`). It pins
+ * a server with zero tools selected. Per the McpSection detach contract,
+ * deselect-all strips every token (passing `[]`), so a server represented by
+ * this token alone counts as detached — not selected.
+ */
+function mcpServerToken(serverName: string): string {
+  return `${Constants.mcp_server}${Constants.mcp_delimiter}${serverName}`;
+}
+
 function isMcpSelected(item: AgentItem, form: FormSelection): boolean {
   if (item.kind !== 'mcp') return false;
   const prefixed = `${MCP_PREFIX}${item.id}`;
+  const serverToken = mcpServerToken(item.id);
   return form.tools.some(
     (t) =>
-      t === item.id || t === prefixed || t.startsWith(`${prefixed}_`) || t.endsWith(`_${prefixed}`),
+      t !== serverToken &&
+      (t === item.id ||
+        t === prefixed ||
+        t.startsWith(`${prefixed}_`) ||
+        t.endsWith(`_${prefixed}`)),
   );
 }
 

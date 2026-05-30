@@ -1,14 +1,25 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useFormContext, useWatch } from 'react-hook-form';
-import { Button, OGDialog, OGDialogContent, useToastContext } from '@librechat/client';
+import {
+  Input,
+  OGDialog,
+  OGDialogTitle,
+  OGDialogContent,
+  OGDialogDescription,
+} from '@librechat/client';
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
-import type { AgentForm } from '~/common';
 import type { AgentItem, AgentItemKind, ItemFilter } from './items/types';
+import type { TranslationKeys } from '~/hooks/useLocalize';
 import type { CategoryOption } from './CategoryFilter';
-import { useLocalize, useHasAccess, useCategories } from '~/hooks';
-import { useListSkillsQuery } from '~/data-provider';
+import type { AgentForm } from '~/common';
+import { useLocalize, useHasAccess, useCategories, useAuthContext } from '~/hooks';
+import {
+  useListSkillsQuery,
+  useGetFavoritesQuery,
+  useGetSkillFavoritesQuery,
+} from '~/data-provider';
 import { useAgentPanelContext } from '~/Providers';
 import MarketplaceSidebar from './MarketplaceSidebar';
 import MarketplaceCatalog from './MarketplaceCatalog';
@@ -29,6 +40,9 @@ interface ToolsMarketplaceDialogProps {
 type View = NonNullable<ItemFilter['view']>;
 type Kind = AgentItemKind | 'all';
 
+/** Sentinel id marking the ItemDialog as a create-new-action flow (see CREATE_ACTION contract). */
+const NEW_ACTION_ID = '__new_action__';
+
 export default function ToolsMarketplaceDialog({
   open,
   onOpenChange,
@@ -47,7 +61,26 @@ export default function ToolsMarketplaceDialog({
     permission: Permissions.USE,
   });
 
-  const { data: skillsData } = useListSkillsQuery({ limit: 100 }, { enabled: hasSkillsAccess });
+  const { user } = useAuthContext();
+  const { data: skillsData, isLoading: isLoadingSkills } = useListSkillsQuery(
+    { limit: 100 },
+    { enabled: hasSkillsAccess },
+  );
+  const { data: favorites } = useGetFavoritesQuery();
+  const { data: skillFavorites } = useGetSkillFavoritesQuery();
+
+  const favoritedIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const favorite of favorites ?? []) {
+      if (favorite.agentId != null) ids.add(favorite.agentId);
+      if (favorite.spec != null) ids.add(favorite.spec);
+      if (favorite.skillId != null) ids.add(favorite.skillId);
+    }
+    for (const skillId of skillFavorites ?? []) {
+      ids.add(skillId);
+    }
+    return ids;
+  }, [favorites, skillFavorites]);
 
   const tools = (useWatch({ control, name: 'tools' }) ?? []) as string[];
   const skills = (useWatch({ control, name: 'skills' }) ?? []) as string[];
@@ -61,7 +94,6 @@ export default function ToolsMarketplaceDialog({
   const codeFiles = (agent?.code_files ?? []) as Array<[string, unknown]>;
 
   const navigate = useNavigate();
-  const { showToast } = useToastContext();
   const { categories } = useCategories({ className: 'size-4', hasAccess: true });
   const categoryOptions = useMemo<CategoryOption[]>(
     () =>
@@ -89,9 +121,17 @@ export default function ToolsMarketplaceDialog({
         setAddMcpOpen(true);
         return;
       }
-      showToast({ message: localize('com_ui_coming_soon'), status: 'info' });
+      setDetailItem({
+        kind: 'action',
+        id: NEW_ACTION_ID,
+        name: localize('com_ui_new_action' as TranslationKeys),
+        description: '',
+        iconKey: 'action',
+        endpointCount: 0,
+        action: undefined,
+      } as unknown as AgentItem);
     },
-    [navigate, onOpenChange, showToast, localize],
+    [navigate, onOpenChange, localize],
   );
 
   const agentActions = useMemo(
@@ -108,6 +148,7 @@ export default function ToolsMarketplaceDialog({
         skills: skillsData?.skills ?? [],
         actions: agentActions,
         permissions: { mcp: hasMcpAccess, skills: hasSkillsAccess },
+        currentUserId: user?.id,
       }),
     [
       agentsConfig,
@@ -117,6 +158,7 @@ export default function ToolsMarketplaceDialog({
       agentActions,
       hasMcpAccess,
       hasSkillsAccess,
+      user?.id,
     ],
   );
 
@@ -165,8 +207,13 @@ export default function ToolsMarketplaceDialog({
   );
 
   const filtered = useMemo(
-    () => applyFilter(catalog, { search, kind, category, view }),
-    [catalog, search, kind, category, view],
+    () => applyFilter(catalog, { search, kind, category, view }, { favoritedIds }),
+    [catalog, search, kind, category, view, favoritedIds],
+  );
+
+  const skillsInView = useMemo(
+    () => (kind === 'all' || kind === 'skill') && view !== 'mine',
+    [kind, view],
   );
 
   const handleToggle = useCallback(
@@ -237,10 +284,11 @@ export default function ToolsMarketplaceDialog({
 
   return (
     <OGDialog open={open} onOpenChange={onOpenChange}>
-      <OGDialogContent
-        className="w-11/12 max-w-[1200px] overflow-hidden rounded-2xl border-border-medium p-0 shadow-xl md:max-h-[92vh]"
-        showCloseButton={false}
-      >
+      <OGDialogContent className="w-11/12 max-w-[1200px] overflow-hidden rounded-2xl border-border-medium p-0 shadow-xl md:max-h-[92vh]">
+        <OGDialogTitle className="sr-only">{localize('com_ui_tools_marketplace')}</OGDialogTitle>
+        <OGDialogDescription className="sr-only">
+          {localize('com_ui_tools_marketplace_description' as TranslationKeys)}
+        </OGDialogDescription>
         <div className="flex h-[88vh] max-h-[840px]">
           <MarketplaceSidebar
             activeView={view}
@@ -252,31 +300,22 @@ export default function ToolsMarketplaceDialog({
             onCreateNew={handleCreateNew}
           />
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="flex items-center gap-2 px-6 py-4">
+            <div className="flex items-center gap-2 px-6 py-4 pr-12">
               <div className="relative flex-1">
                 <Search
-                  className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary"
+                  className="pointer-events-none absolute left-3 top-1/2 z-[1] size-4 -translate-y-1/2 text-text-tertiary"
                   aria-hidden="true"
                 />
-                <input
+                <Input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={localize('com_ui_tools_marketplace_search')}
                   aria-label={localize('com_ui_tools_marketplace_search')}
-                  className="h-10 w-full rounded-xl border border-border-light bg-transparent pl-9 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-border-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
+                  className="pl-9"
                 />
               </div>
               <CategoryFilter options={categoryOptions} value={category} onChange={setCategory} />
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-10 shrink-0 rounded-xl text-text-secondary hover:text-text-primary"
-                onClick={() => onOpenChange(false)}
-                aria-label={localize('com_ui_tools_close')}
-              >
-                <X className="size-4" aria-hidden="true" />
-              </Button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <MarketplaceCatalog
@@ -284,6 +323,9 @@ export default function ToolsMarketplaceDialog({
                 selectedIds={selectedIds}
                 onToggle={handleCardClick}
                 onConfigure={handleConfigure}
+                view={view}
+                isLoadingSkills={isLoadingSkills}
+                skillsInView={skillsInView}
               />
             </div>
           </div>

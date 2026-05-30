@@ -18,9 +18,11 @@ import { isEphemeralAgent } from '~/common';
 function FileSearch({
   agent_id,
   files: _files,
+  showHeader = true,
 }: {
   agent_id: string;
   files?: [string, ExtendedFile][];
+  showHeader?: boolean;
 }) {
   const localize = useLocalize();
   const { setValue } = useFormContext<AgentForm>();
@@ -127,10 +129,12 @@ function FileSearch({
 
   return (
     <div className="w-full">
-      <SectionHeader
-        title={localize('com_assistants_file_search')}
-        info={localize('com_agents_file_search_info')}
-      />
+      {showHeader && (
+        <SectionHeader
+          title={localize('com_assistants_file_search')}
+          info={localize('com_agents_file_search_info')}
+        />
+      )}
       <div className="flex flex-col gap-3">
         {/* File Search (RAG API) Files */}
         <FileRow

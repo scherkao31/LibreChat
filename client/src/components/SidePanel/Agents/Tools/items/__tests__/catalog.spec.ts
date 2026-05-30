@@ -74,6 +74,82 @@ describe('buildCatalog', () => {
     expect(tool?.id).toBe('dalle');
   });
 
+  test('marks an auth-requiring, unauthenticated tool as needs_setup', () => {
+    const items = buildCatalog({
+      ...emptyInputs,
+      regularTools: [
+        {
+          pluginKey: 'serpapi',
+          name: 'SerpApi',
+          description: 'Search',
+          authConfig: [{ authField: 'SERPAPI_API_KEY', label: 'Key', description: '' }],
+          authenticated: false,
+        },
+      ] as never,
+    });
+    const tool = items.find((i) => i.kind === 'tool');
+    expect(tool?.status).toBe('needs_setup');
+  });
+
+  test('leaves status undefined for an authenticated auth-requiring tool', () => {
+    const items = buildCatalog({
+      ...emptyInputs,
+      regularTools: [
+        {
+          pluginKey: 'serpapi',
+          name: 'SerpApi',
+          description: 'Search',
+          authConfig: [{ authField: 'SERPAPI_API_KEY', label: 'Key', description: '' }],
+          authenticated: true,
+        },
+      ] as never,
+    });
+    const tool = items.find((i) => i.kind === 'tool');
+    expect(tool?.status).toBeUndefined();
+  });
+
+  test('leaves status undefined for a tool with no authConfig', () => {
+    const items = buildCatalog({
+      ...emptyInputs,
+      regularTools: [{ pluginKey: 'dalle', name: 'DALL-E', description: 'Images' }] as never,
+    });
+    const tool = items.find((i) => i.kind === 'tool');
+    expect(tool?.status).toBeUndefined();
+  });
+
+  test('flags builtin status from builtinAuthMap', () => {
+    const items = buildCatalog({
+      ...emptyInputs,
+      agentsConfig: { capabilities: [AgentCapabilities.web_search] },
+      builtinAuthMap: new Map([[AgentCapabilities.web_search, true]]),
+    });
+    const builtin = items.find((i) => i.kind === 'builtin');
+    expect(builtin?.status).toBe('needs_setup');
+  });
+
+  test('marks a skill authored by the current user as ownedByUser', () => {
+    const items = buildCatalog({
+      ...emptyInputs,
+      currentUserId: 'u1',
+      skills: [
+        { _id: 's1', name: 'Mine', description: '', category: 'code', author: 'u1' },
+        { _id: 's2', name: 'Theirs', description: '', category: 'code', author: 'u2' },
+      ] as never,
+    });
+    const skills = items.filter((i) => i.kind === 'skill');
+    expect(skills.find((s) => s.id === 's1')?.ownedByUser).toBe(true);
+    expect(skills.find((s) => s.id === 's2')?.ownedByUser).toBe(false);
+  });
+
+  test('leaves ownedByUser false when no currentUserId is provided', () => {
+    const items = buildCatalog({
+      ...emptyInputs,
+      skills: [{ _id: 's1', name: 'S1', description: '', author: 'u1' }] as never,
+    });
+    const skill = items.find((i) => i.kind === 'skill');
+    expect(skill?.ownedByUser).toBe(false);
+  });
+
   test('emits action items with endpoint counts', () => {
     const items = buildCatalog({
       ...emptyInputs,

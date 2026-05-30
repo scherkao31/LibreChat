@@ -14,15 +14,11 @@ import { specialVariables } from 'librechat-data-provider';
 import { Controller, useFormContext } from 'react-hook-form';
 import type { TSpecialVarLabel } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
-import { cn, defaultTextProps, removeFocusOutlines } from '~/utils';
+import { cn } from '~/utils';
 import { useLocalize } from '~/hooks';
 
-const inputClass = cn(
-  defaultTextProps,
-  'flex w-full rounded-xl px-3 py-2 dark:border-gray-800 dark:bg-gray-800',
-  'focus:bg-transparent dark:focus:bg-gray-800 focus:border-border-medium dark:focus:border-gray-800',
-  removeFocusOutlines,
-);
+const textareaClass =
+  'lc-field flex w-full rounded-lg border border-border-light bg-surface-secondary px-3 py-2 text-text-primary placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-border-medium focus-visible:ring-2 focus-visible:ring-ring-primary disabled:cursor-not-allowed disabled:opacity-50';
 
 interface VariableOption {
   label: TSpecialVarLabel;
@@ -109,7 +105,7 @@ export default function Instructions() {
             <textarea
               {...field}
               value={field.value ?? ''}
-              className={cn(inputClass, 'min-h-[88px] resize-y text-sm')}
+              className={cn(textareaClass, 'min-h-[88px] resize-y text-sm')}
               id="instructions"
               placeholder={localize('com_agents_instructions_placeholder')}
               rows={3}
@@ -146,7 +142,10 @@ export default function Instructions() {
               <textarea
                 {...field}
                 value={field.value ?? ''}
-                className={cn(inputClass, 'min-h-0 flex-1 resize-none text-base leading-relaxed')}
+                className={cn(
+                  textareaClass,
+                  'min-h-0 flex-1 resize-none text-base leading-relaxed',
+                )}
                 placeholder={localize('com_agents_instructions_placeholder')}
                 aria-label={localize('com_ui_instructions')}
               />

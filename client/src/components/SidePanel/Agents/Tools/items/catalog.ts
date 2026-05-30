@@ -2,6 +2,7 @@ import { AgentCapabilities } from 'librechat-data-provider';
 import type { TPlugin, TSkillSummary, Action } from 'librechat-data-provider';
 import type { MCPServerInfo } from '~/common';
 import type { AgentItem, BuiltinId } from './types';
+import { pluginNeedsAuth } from './auth';
 
 export interface BuildCatalogInputs {
   agentsConfig: { capabilities: string[] };
@@ -10,6 +11,19 @@ export interface BuildCatalogInputs {
   skills: TSkillSummary[];
   actions: Action[];
   permissions: { mcp: boolean; skills: boolean };
+  /**
+   * Id of the signed-in user. When provided, skills authored by this user are
+   * flagged `ownedByUser` so the "Made by you" view can surface them. Optional
+   * to keep existing callers working; absent means no item is owned.
+   */
+  currentUserId?: string;
+  /**
+   * Maps a builtin capability id (e.g. `web_search`, `execute_code`) to whether
+   * it still needs setup (USER_PROVIDED + unauthenticated). Threaded from
+   * `useVerifyAgentToolAuth` by the caller. Absent entries leave `status`
+   * undefined, so builtins are treated as ready until proven otherwise.
+   */
+  builtinAuthMap?: Map<string, boolean>;
 }
 
 interface BuiltinDef {
@@ -77,6 +91,7 @@ export function buildCatalog(inputs: BuildCatalogInputs): AgentItem[] {
       iconKey: def.iconKey,
       name: def.nameKey,
       description: def.descriptionKey,
+      status: inputs.builtinAuthMap?.get(def.id) === true ? 'needs_setup' : undefined,
     });
   }
 
@@ -102,6 +117,7 @@ export function buildCatalog(inputs: BuildCatalogInputs): AgentItem[] {
       description: plugin.description ?? '',
       iconKey: 'tool',
       plugin,
+      status: pluginNeedsAuth(plugin) ? 'needs_setup' : undefined,
     });
   }
 
@@ -114,6 +130,7 @@ export function buildCatalog(inputs: BuildCatalogInputs): AgentItem[] {
         description: skill.description ?? '',
         iconKey: 'skill',
         skill,
+        ownedByUser: inputs.currentUserId != null && skill.author === inputs.currentUserId,
       });
     }
   }

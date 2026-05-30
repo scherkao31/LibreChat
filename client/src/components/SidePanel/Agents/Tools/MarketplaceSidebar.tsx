@@ -54,7 +54,7 @@ function SidebarItem({ icon, label, active, onClick, count }: SidebarItemProps) 
       <span className="flex size-4 shrink-0 items-center justify-center">{icon}</span>
       <span className="flex-1 truncate">{label}</span>
       {count !== undefined && count > 0 && (
-        <span className="text-[11px] tabular-nums text-text-tertiary">{count}</span>
+        <span className="text-[11px] tabular-nums text-text-secondary">{count}</span>
       )}
     </button>
   );
@@ -103,7 +103,6 @@ export default function MarketplaceSidebar({
         isOpen={createOpen}
         setIsOpen={setCreateOpen}
         menuId="marketplace-create-new"
-        className="z-[200]"
         trigger={
           <Ariakit.MenuButton
             render={
@@ -134,36 +133,51 @@ export default function MarketplaceSidebar({
       <SidebarItem
         icon={<ListFilter className="size-4" />}
         label={localize('com_ui_tools_kind_official')}
-        active={activeKind === 'builtin'}
-        onClick={() => onSelectKind('builtin')}
+        active={activeKind === 'builtin' && activeView === 'marketplace'}
+        onClick={() => {
+          onSelectView('marketplace');
+          onSelectKind('builtin');
+        }}
         count={counts.builtin}
       />
       <SidebarItem
         icon={<Wrench className="size-4" />}
         label={localize('com_ui_tools_kind_tools')}
-        active={activeKind === 'tool'}
-        onClick={() => onSelectKind('tool')}
+        active={activeKind === 'tool' && activeView === 'marketplace'}
+        onClick={() => {
+          onSelectView('marketplace');
+          onSelectKind('tool');
+        }}
         count={counts.tool}
       />
       <SidebarItem
         icon={<Zap className="size-4" />}
         label={localize('com_ui_tools_kind_skills')}
-        active={activeKind === 'skill'}
-        onClick={() => onSelectKind('skill')}
+        active={activeKind === 'skill' && activeView === 'marketplace'}
+        onClick={() => {
+          onSelectView('marketplace');
+          onSelectKind('skill');
+        }}
         count={counts.skill}
       />
       <SidebarItem
         icon={<Server className="size-4" />}
         label={localize('com_ui_tools_kind_mcp')}
-        active={activeKind === 'mcp'}
-        onClick={() => onSelectKind('mcp')}
+        active={activeKind === 'mcp' && activeView === 'marketplace'}
+        onClick={() => {
+          onSelectView('marketplace');
+          onSelectKind('mcp');
+        }}
         count={counts.mcp}
       />
       <SidebarItem
         icon={<Workflow className="size-4" />}
         label={localize('com_ui_tools_kind_actions')}
-        active={activeKind === 'action'}
-        onClick={() => onSelectKind('action')}
+        active={activeKind === 'action' && activeView === 'marketplace'}
+        onClick={() => {
+          onSelectView('marketplace');
+          onSelectKind('action');
+        }}
         count={counts.action}
       />
 
@@ -173,13 +187,19 @@ export default function MarketplaceSidebar({
         icon={<User className="size-4" />}
         label={localize('com_ui_tools_view_made_by_you')}
         active={activeView === 'mine'}
-        onClick={() => onSelectView('mine')}
+        onClick={() => {
+          onSelectView('mine');
+          onSelectKind('all');
+        }}
       />
       <SidebarItem
         icon={<Star className="size-4" />}
         label={localize('com_ui_tools_view_favorites')}
         active={activeView === 'favorites'}
-        onClick={() => onSelectView('favorites')}
+        onClick={() => {
+          onSelectView('favorites');
+          onSelectKind('all');
+        }}
       />
     </aside>
   );

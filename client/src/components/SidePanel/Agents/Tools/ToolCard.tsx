@@ -135,7 +135,7 @@ function ToolCardImpl({ item, selected, onToggle, onConfigure }: ToolCardProps) 
                 </span>
               )}
             </div>
-            <p className="truncate text-[11px] uppercase tracking-wide text-text-tertiary">
+            <p className="truncate text-[11px] uppercase tracking-wide text-text-secondary">
               {kindLabel}
             </p>
           </div>

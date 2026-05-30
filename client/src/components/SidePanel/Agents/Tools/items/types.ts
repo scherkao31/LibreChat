@@ -18,6 +18,13 @@ interface ItemBase {
   description: string;
   iconKey: string;
   status?: AgentItemStatus;
+  /**
+   * True when the catalog item was authored by the current user. Drives the
+   * "Made by you" sidebar view. Only kinds carrying an author signal can set
+   * this (today: skills, via `TSkillSummary.author`); all other kinds default
+   * to `false` since they expose no per-user ownership.
+   */
+  ownedByUser?: boolean;
 }
 
 export interface BuiltinItem extends ItemBase {

@@ -2676,6 +2676,16 @@ html {
   outline-offset: 2px;
 }
 
+/* Shared Input/Textarea (.lc-field): show the focus ring for keyboard users
+   only. Text inputs match :focus-visible on pointer focus too (a UA heuristic
+   CSS cannot distinguish), so the ring is gated on the tracked input modality. */
+html[data-input-modality='pointer'] .lc-field:focus,
+html[data-input-modality='pointer'] .lc-field:focus-visible {
+  border-color: var(--border-light);
+  box-shadow: none;
+  outline: none;
+}
+
 .popover-ui {
   display: flex;
   max-height: min(var(--popover-available-height, 1700px), 1700px);

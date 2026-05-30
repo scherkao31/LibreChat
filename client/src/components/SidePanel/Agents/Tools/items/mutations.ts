@@ -50,33 +50,3 @@ export function computeToggleAction(item: AgentItem, state: { selected: boolean 
     ? { type: 'action-remove', actionId: item.id }
     : { type: 'action-add', actionId: item.id };
 }
-
-export interface MutableForm {
-  execute_code: boolean;
-  web_search: boolean;
-  file_search: boolean;
-  artifacts: string;
-  tools: string[];
-  skills: string[];
-}
-
-export function applyTogglePatch(form: MutableForm, patch: TogglePatch): MutableForm {
-  switch (patch.type) {
-    case 'builtin':
-      return { ...form, [patch.field]: patch.value } as MutableForm;
-    case 'tool-add': {
-      if (form.tools.includes(patch.id)) return form;
-      return { ...form, tools: [...form.tools, patch.id] };
-    }
-    case 'tool-remove':
-      return { ...form, tools: form.tools.filter((t) => t !== patch.id) };
-    case 'skill-add': {
-      if (form.skills.includes(patch.id)) return form;
-      return { ...form, skills: [...form.skills, patch.id] };
-    }
-    case 'skill-remove':
-      return { ...form, skills: form.skills.filter((s) => s !== patch.id) };
-    default:
-      return form;
-  }
-}

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { useFormContext, useWatch } from 'react-hook-form';
+import { Label, OGDialog, OGDialogTemplate, useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
 import type { AgentItem } from './items/types';
@@ -11,8 +12,10 @@ import { buildCatalog } from './items/catalog';
 import { deriveSelectedItems } from './items/selectors';
 import { computeToggleAction } from './items/mutations';
 import { useAgentPanelContext } from '~/Providers';
-import { useListSkillsQuery } from '~/data-provider';
+import { useListSkillsQuery, useDeleteAgentAction } from '~/data-provider';
+import { useRemoveMCPTool } from '~/hooks/MCP';
 import { useLocalize, useHasAccess } from '~/hooks';
+import { isEphemeralAgent } from '~/common';
 
 interface Props {
   agentId: string;
@@ -20,10 +23,27 @@ interface Props {
 
 export default function ToolsSection({ agentId }: Props) {
   const localize = useLocalize();
+  const { showToast } = useToastContext();
   const [open, setOpen] = useState(false);
   const [dialogItem, setDialogItem] = useState<AgentItem | null>(null);
+  const [pendingActionRemoval, setPendingActionRemoval] = useState<string | null>(null);
   const { control, getValues, setValue } = useFormContext<AgentForm>();
   const { agentsConfig, regularTools, mcpServersMap, actions } = useAgentPanelContext();
+  const { removeTool: removeMCPTool } = useRemoveMCPTool();
+  const deleteAgentAction = useDeleteAgentAction({
+    onSuccess: () => {
+      showToast({
+        message: localize('com_assistants_delete_actions_success'),
+        status: 'success',
+      });
+    },
+    onError: (error) => {
+      showToast({
+        message: (error as Error).message || localize('com_assistants_delete_actions_error'),
+        status: 'error',
+      });
+    },
+  });
 
   const hasMcpAccess = useHasAccess({
     permissionType: PermissionTypes.MCP_SERVERS,
@@ -134,12 +154,34 @@ export default function ToolsSection({ agentId }: Props) {
           );
           break;
         }
+        case 'mcp-remove':
+          removeMCPTool(patch.serverName);
+          break;
+        case 'action-remove':
+          setPendingActionRemoval(patch.actionId);
+          break;
         default:
           setOpen(true);
       }
     },
-    [getValues, setValue, setDialogItem],
+    [getValues, setValue, removeMCPTool],
   );
+
+  const confirmActionRemoval = useCallback(() => {
+    if (pendingActionRemoval == null) {
+      return;
+    }
+    if (isEphemeralAgent(agentId)) {
+      showToast({
+        message: localize('com_agents_no_agent_id_error'),
+        status: 'error',
+      });
+      setPendingActionRemoval(null);
+      return;
+    }
+    deleteAgentAction.mutate({ action_id: pendingActionRemoval, agent_id: agentId });
+    setPendingActionRemoval(null);
+  }, [pendingActionRemoval, agentId, deleteAgentAction, showToast, localize]);
 
   const isEmpty = selected.length === 0;
 
@@ -157,7 +199,7 @@ export default function ToolsSection({ agentId }: Props) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+          className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
           {localize('com_ui_add')}
@@ -167,7 +209,7 @@ export default function ToolsSection({ agentId }: Props) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-border-light px-2 py-4 text-text-secondary transition-colors hover:border-border-medium hover:bg-surface-secondary hover:text-text-secondary"
+          className="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-border-light px-2 py-4 text-text-secondary transition-colors hover:border-border-medium hover:bg-surface-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="text-xs">{localize('com_ui_tools_empty')}</span>
@@ -186,6 +228,31 @@ export default function ToolsSection({ agentId }: Props) {
       )}
       {open && <ToolsMarketplaceDialog open={open} onOpenChange={setOpen} agentId={agentId} />}
       <ItemDialog item={dialogItem} agentId={agentId} onClose={() => setDialogItem(null)} />
+      <OGDialog
+        open={pendingActionRemoval != null}
+        onOpenChange={(value) => {
+          if (!value) {
+            setPendingActionRemoval(null);
+          }
+        }}
+      >
+        <OGDialogTemplate
+          showCloseButton={false}
+          title={localize('com_ui_delete_action')}
+          className="max-w-[450px]"
+          main={
+            <Label className="text-left text-sm font-medium">
+              {localize('com_ui_delete_action_confirm')}
+            </Label>
+          }
+          selection={{
+            selectHandler: confirmActionRemoval,
+            selectClasses:
+              'bg-red-700 dark:bg-red-600 hover:bg-red-800 dark:hover:bg-red-800 transition-color duration-200 text-white',
+            selectText: localize('com_ui_delete'),
+          }}
+        />
+      </OGDialog>
     </div>
   );
 }

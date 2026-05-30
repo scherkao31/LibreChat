@@ -7,6 +7,7 @@ import {
 } from 'librechat-data-provider';
 import {
   Label,
+  Button,
   OGDialog,
   TrashIcon,
   OGDialogTrigger,
@@ -25,9 +26,15 @@ interface ActionEditorProps {
   agentId: string;
   onClose: () => void;
   onDeleted?: () => void;
+  onCreated?: () => void;
 }
 
-export default function ActionEditor({ agentId, onClose, onDeleted }: ActionEditorProps) {
+export default function ActionEditor({
+  agentId,
+  onClose,
+  onDeleted,
+  onCreated,
+}: ActionEditorProps) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
   const { action, setAction } = useAgentPanelContext();
@@ -101,14 +108,16 @@ export default function ActionEditor({ agentId, onClose, onDeleted }: ActionEdit
                 {action ? (
                   <OGDialog>
                     <OGDialogTrigger asChild>
-                      <button
+                      <Button
                         type="button"
+                        variant="subtle"
+                        size="icon"
                         disabled={isEphemeralAgent(agentId) || !action.action_id}
                         aria-label={localize('com_ui_delete_action')}
-                        className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-red-500 transition-colors hover:bg-surface-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary disabled:opacity-50"
+                        className="flex-shrink-0 text-red-500"
                       >
                         <TrashIcon className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </OGDialogTrigger>
                     <OGDialogTemplate
                       showCloseButton={false}
@@ -143,7 +152,12 @@ export default function ActionEditor({ agentId, onClose, onDeleted }: ActionEdit
               <ActionsAuth />
             </div>
             <div className="flex flex-1 flex-col">
-              <ActionsInput action={action} agent_id={agentId} setAction={setAction} />
+              <ActionsInput
+                action={action}
+                agent_id={agentId}
+                setAction={setAction}
+                onCreated={onCreated}
+              />
             </div>
           </div>
         </div>

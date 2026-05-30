@@ -51,7 +51,6 @@ export default function CategoryFilter({ options, value, onChange }: Props) {
       isOpen={open}
       setIsOpen={setOpen}
       menuId="marketplace-category-filter"
-      className="z-[200]"
       trigger={
         <Ariakit.MenuButton
           render={

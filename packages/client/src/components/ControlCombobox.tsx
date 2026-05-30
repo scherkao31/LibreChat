@@ -4,6 +4,7 @@ import { Search, ChevronDown } from 'lucide-react';
 import { useMemo, useState, useRef, memo, useEffect } from 'react';
 import { SelectRenderer } from '@ariakit/react-core/select/select-renderer';
 import type { OptionWithIcon } from '~/common';
+import { usePopoverZIndex } from './OriginalDialog';
 import './AnimatePopover.css';
 import { cn } from '~/utils';
 
@@ -49,6 +50,7 @@ function ControlCombobox({
   const [searchValue, setSearchValue] = useState('');
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [buttonWidth, setButtonWidth] = useState<number | null>(null);
+  const popoverZIndex = usePopoverZIndex();
 
   const getItem = (option: OptionWithIcon) => ({
     id: `item-${option.value}`,
@@ -158,9 +160,9 @@ function ControlCombobox({
         gutter={4}
         portal
         className={cn(
-          'animate-popover z-40 overflow-hidden rounded-xl border border-border-light bg-surface-secondary shadow-lg',
+          'animate-popover overflow-hidden rounded-xl border border-border-light bg-surface-secondary shadow-lg',
         )}
-        style={{ width: isCollapsed ? '300px' : (buttonWidth ?? '300px') }}
+        style={{ zIndex: popoverZIndex, width: isCollapsed ? '300px' : (buttonWidth ?? '300px') }}
       >
         <div className="py-1.5">
           <div className="relative">

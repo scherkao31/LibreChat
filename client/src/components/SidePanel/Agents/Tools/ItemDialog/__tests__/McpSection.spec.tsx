@@ -4,10 +4,14 @@ import McpSection from '../sections/McpSection';
 import type { McpItem } from '../../items/types';
 
 const mockSetValue = jest.fn();
-const mockGetValues = jest.fn(() => []);
+const mockGetValues = jest.fn((): string[] => []);
 
 jest.mock('react-hook-form', () => ({
   useFormContext: () => ({ setValue: mockSetValue, getValues: mockGetValues }),
+}));
+
+jest.mock('~/Providers', () => ({
+  useAgentPanelContext: () => ({ mcpServersMap: new Map() }),
 }));
 
 jest.mock('~/hooks', () => ({
@@ -129,6 +133,17 @@ describe('McpSection', () => {
     expect(mockSetValue).toHaveBeenCalledWith(
       'tools',
       expect.arrayContaining(['mcp:srv:a', 'mcp:srv:b']),
+      expect.objectContaining({ shouldDirty: true }),
+    );
+  });
+
+  test('deselect-all detaches the server by stripping every token', () => {
+    mockGetValues.mockReturnValue(['mcp:srv:a', 'mcp:srv:b', 'sys__server__sys_mcp_srv']);
+    render(<McpSection item={item} />);
+    fireEvent.click(screen.getByLabelText('com_ui_tools_mcp_deselect_all'));
+    expect(mockSetValue).toHaveBeenCalledWith(
+      'tools',
+      [],
       expect.objectContaining({ shouldDirty: true }),
     );
   });

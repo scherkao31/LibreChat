@@ -23,9 +23,7 @@ export default function ToolSection({ item }: Props) {
         </p>
       )}
       {needsAuth && (
-        <div className="rounded-xl border border-border-light bg-surface-secondary p-4">
-          <PluginAuthForm plugin={item.plugin} isEntityTool onSubmit={() => setAuthDone(true)} />
-        </div>
+        <PluginAuthForm plugin={item.plugin} isEntityTool onSubmit={() => setAuthDone(true)} />
       )}
     </div>
   );

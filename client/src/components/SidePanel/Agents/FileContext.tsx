@@ -17,9 +17,11 @@ import { isEphemeralAgent } from '~/common';
 function FileContext({
   agent_id,
   files: _files,
+  showHeader = true,
 }: {
   agent_id: string;
   files?: [string, ExtendedFile][];
+  showHeader?: boolean;
 }) {
   const localize = useLocalize();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -104,10 +106,12 @@ function FileContext({
   );
   return (
     <div className="w-full">
-      <SectionHeader
-        title={localize('com_agents_file_context_label')}
-        info={localize('com_agents_file_context_description')}
-      />
+      {showHeader && (
+        <SectionHeader
+          title={localize('com_agents_file_context_label')}
+          info={localize('com_agents_file_context_description')}
+        />
+      )}
       <div className="flex flex-col gap-3">
         {/* File Context Files */}
         <FileRow

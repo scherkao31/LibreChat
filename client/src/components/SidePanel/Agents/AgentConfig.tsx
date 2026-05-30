@@ -1,7 +1,8 @@
+import { Input } from '@librechat/client';
 import { Controller, useWatch, useFormContext } from 'react-hook-form';
 import { EModelEndpoint, getEndpointField } from 'librechat-data-provider';
 import type { AgentForm, IconComponentTypes } from '~/common';
-import { removeFocusOutlines, defaultTextProps, validateEmail, getIconKey, cn } from '~/utils';
+import { validateEmail, getIconKey, cn } from '~/utils';
 import { useAgentPanelContext } from '~/Providers';
 import AgentCategorySelector from './AgentCategorySelector';
 import { useLocalize } from '~/hooks';
@@ -11,14 +12,7 @@ import Instructions from './Instructions';
 import ToolsSection from './Tools/ToolsSection';
 import AgentAvatar from './AgentAvatar';
 
-const inputClass = cn(
-  defaultTextProps,
-  'flex w-full rounded-xl px-3 py-2 dark:border-gray-800 dark:bg-gray-800',
-  'focus:bg-transparent dark:focus:bg-gray-800 focus:border-border-medium dark:focus:border-gray-800',
-  removeFocusOutlines,
-);
-
-const compactInputClass = cn(inputClass, 'h-9 text-sm');
+const fieldClass = 'h-9';
 
 export default function AgentConfig() {
   const localize = useLocalize();
@@ -66,11 +60,11 @@ export default function AgentConfig() {
             control={control}
             render={({ field }) => (
               <div className="flex flex-col">
-                <input
+                <Input
                   {...field}
                   value={field.value ?? ''}
                   maxLength={256}
-                  className={cn(compactInputClass, 'font-medium')}
+                  className={cn(fieldClass, 'font-medium')}
                   id="name"
                   type="text"
                   placeholder={localize('com_agents_name_placeholder')}
@@ -90,11 +84,11 @@ export default function AgentConfig() {
             name="description"
             control={control}
             render={({ field }) => (
-              <input
+              <Input
                 {...field}
                 value={field.value ?? ''}
                 maxLength={512}
-                className={compactInputClass}
+                className={fieldClass}
                 id="description"
                 type="text"
                 placeholder={localize('com_agents_description_placeholder')}
@@ -118,7 +112,7 @@ export default function AgentConfig() {
             type="button"
             onClick={() => setActivePanel(Panel.model)}
             title={model || undefined}
-            className="relative flex h-9 w-full min-w-0 items-center overflow-hidden rounded-xl border border-border-light bg-surface-secondary px-1 text-sm font-medium text-text-primary transition-colors hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
+            className="relative flex h-9 w-full min-w-0 items-center overflow-hidden rounded-lg border border-border-light bg-surface-secondary px-1 text-sm font-medium text-text-primary transition-colors hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
           >
             <div className="flex w-full min-w-0 items-center gap-2">
               {Icon && (
@@ -144,7 +138,7 @@ export default function AgentConfig() {
           >
             {localize('com_ui_category')} <span className="text-red-500">*</span>
           </label>
-          <AgentCategorySelector className="w-full" />
+          <AgentCategorySelector className="w-full rounded-lg" />
         </div>
       </div>
 
@@ -171,10 +165,10 @@ export default function AgentConfig() {
             }}
             render={({ field, fieldState: { error } }) => (
               <div className="flex flex-col">
-                <input
+                <Input
                   {...field}
                   value={field.value ?? ''}
-                  className={cn(compactInputClass, error ? 'border-2 border-red-500' : '')}
+                  className={cn(fieldClass, error && 'border-2 border-red-500')}
                   id="support-contact-name"
                   type="text"
                   placeholder={localize('com_ui_support_contact_name_placeholder')}
@@ -204,10 +198,10 @@ export default function AgentConfig() {
             }}
             render={({ field, fieldState: { error } }) => (
               <div className="flex flex-col">
-                <input
+                <Input
                   {...field}
                   value={field.value ?? ''}
-                  className={cn(compactInputClass, error ? 'border-2 border-red-500' : '')}
+                  className={cn(fieldClass, error && 'border-2 border-red-500')}
                   id="support-contact-email"
                   type="email"
                   placeholder={localize('com_ui_support_contact_email_placeholder')}
