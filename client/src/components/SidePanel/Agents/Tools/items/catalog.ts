@@ -1,8 +1,21 @@
 import { AgentCapabilities } from 'librechat-data-provider';
 import type { TPlugin, TSkillSummary, Action } from 'librechat-data-provider';
 import type { MCPServerInfo } from '~/common';
-import type { AgentItem, BuiltinId } from './types';
+import type { AgentItem, SkillItem, BuiltinId } from './types';
 import { pluginNeedsAuth } from './auth';
+
+/** Maps skill summaries to catalog items, flagging the current user's own skills. */
+export function buildSkillItems(skills: TSkillSummary[], currentUserId?: string): SkillItem[] {
+  return skills.map((skill) => ({
+    kind: 'skill',
+    id: skill._id,
+    name: skill.name,
+    description: skill.description ?? '',
+    iconKey: 'skill',
+    skill,
+    ownedByUser: currentUserId != null && skill.author === currentUserId,
+  }));
+}
 
 export interface BuildCatalogInputs {
   agentsConfig: { capabilities: string[] };
@@ -122,17 +135,7 @@ export function buildCatalog(inputs: BuildCatalogInputs): AgentItem[] {
   }
 
   if (inputs.permissions.skills) {
-    for (const skill of inputs.skills) {
-      items.push({
-        kind: 'skill',
-        id: skill._id,
-        name: skill.name,
-        description: skill.description ?? '',
-        iconKey: 'skill',
-        skill,
-        ownedByUser: inputs.currentUserId != null && skill.author === inputs.currentUserId,
-      });
-    }
+    items.push(...buildSkillItems(inputs.skills, inputs.currentUserId));
   }
 
   for (const action of inputs.actions) {

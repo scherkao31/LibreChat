@@ -95,60 +95,59 @@ export default function ActionEditor({
     }
   }, [action, reset]);
 
+  const deleteButton = action ? (
+    <OGDialog>
+      <OGDialogTrigger asChild>
+        <Button
+          type="button"
+          variant="subtle"
+          size="icon"
+          disabled={isEphemeralAgent(agentId) || !action.action_id}
+          aria-label={localize('com_ui_delete_action')}
+          className="flex-shrink-0 text-red-500"
+        >
+          <TrashIcon className="h-4 w-4" />
+        </Button>
+      </OGDialogTrigger>
+      <OGDialogTemplate
+        showCloseButton={false}
+        title={localize('com_ui_delete_action')}
+        className="max-w-[450px]"
+        main={
+          <Label className="text-left text-sm font-medium">
+            {localize('com_ui_delete_action_confirm')}
+          </Label>
+        }
+        selection={{
+          selectHandler: () => {
+            if (isEphemeralAgent(agentId)) {
+              return showToast({
+                message: localize('com_agents_no_agent_id_error'),
+                status: 'error',
+              });
+            }
+            deleteAgentAction.mutate({
+              action_id: action.action_id,
+              agent_id: agentId,
+            });
+          },
+          selectClasses:
+            'bg-red-700 dark:bg-red-600 hover:bg-red-800 dark:hover:bg-red-800 transition-color duration-200 text-white',
+          selectText: localize('com_ui_delete'),
+        }}
+      />
+    </OGDialog>
+  ) : null;
+
   return (
     <FormProvider {...methods}>
       <form className="h-full grow overflow-hidden">
         <div className="h-full overflow-auto text-sm">
           <div className="flex min-h-full flex-col pb-3">
             <div>
-              <div className="grid grid-cols-[1fr_auto] items-start gap-2">
-                <p className="mt-1 text-xs text-text-secondary">
-                  {localize('com_assistants_actions_info')}
-                </p>
-                {action ? (
-                  <OGDialog>
-                    <OGDialogTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="subtle"
-                        size="icon"
-                        disabled={isEphemeralAgent(agentId) || !action.action_id}
-                        aria-label={localize('com_ui_delete_action')}
-                        className="flex-shrink-0 text-red-500"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    </OGDialogTrigger>
-                    <OGDialogTemplate
-                      showCloseButton={false}
-                      title={localize('com_ui_delete_action')}
-                      className="max-w-[450px]"
-                      main={
-                        <Label className="text-left text-sm font-medium">
-                          {localize('com_ui_delete_action_confirm')}
-                        </Label>
-                      }
-                      selection={{
-                        selectHandler: () => {
-                          if (isEphemeralAgent(agentId)) {
-                            return showToast({
-                              message: localize('com_agents_no_agent_id_error'),
-                              status: 'error',
-                            });
-                          }
-                          deleteAgentAction.mutate({
-                            action_id: action.action_id,
-                            agent_id: agentId,
-                          });
-                        },
-                        selectClasses:
-                          'bg-red-700 dark:bg-red-600 hover:bg-red-800 dark:hover:bg-red-800 transition-color duration-200 text-white',
-                        selectText: localize('com_ui_delete'),
-                      }}
-                    />
-                  </OGDialog>
-                ) : null}
-              </div>
+              <p className="mt-1 text-xs text-text-secondary">
+                {localize('com_assistants_actions_info')}
+              </p>
               <ActionsAuth />
             </div>
             <div className="flex flex-1 flex-col">
@@ -157,6 +156,7 @@ export default function ActionEditor({
                 agent_id={agentId}
                 setAction={setAction}
                 onCreated={onCreated}
+                footerStart={deleteButton}
               />
             </div>
           </div>

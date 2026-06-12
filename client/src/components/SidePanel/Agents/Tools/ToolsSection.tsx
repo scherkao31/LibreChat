@@ -4,9 +4,10 @@ import { useFormContext, useWatch } from 'react-hook-form';
 import { Label, OGDialog, OGDialogTemplate, useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
-import type { AgentItem, AgentItemKind } from './items/types';
+import type { AgentItem } from './items/types';
 import ToolRow from './ToolRow';
 import ItemDialog from './ItemDialog/ItemDialog';
+import SkillsDialog from './SkillsDialog';
 import ToolsMarketplaceDialog from './ToolsMarketplaceDialog';
 import { buildCatalog } from './items/catalog';
 import { deriveSelectedItems } from './items/selectors';
@@ -25,14 +26,10 @@ export default function ToolsSection({ agentId }: Props) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
   const [open, setOpen] = useState(false);
-  const [marketplaceKind, setMarketplaceKind] = useState<AgentItemKind | 'all'>('all');
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const [dialogItem, setDialogItem] = useState<AgentItem | null>(null);
   const [pendingActionRemoval, setPendingActionRemoval] = useState<string | null>(null);
 
-  const openMarketplace = useCallback((kind: AgentItemKind | 'all') => {
-    setMarketplaceKind(kind);
-    setOpen(true);
-  }, []);
   const { control, getValues, setValue } = useFormContext<AgentForm>();
   const { agentsConfig, regularTools, mcpServersMap, actions } = useAgentPanelContext();
   const { removeTool: removeMCPTool } = useRemoveMCPTool();
@@ -200,7 +197,7 @@ export default function ToolsSection({ agentId }: Props) {
         emptyLabel={localize('com_ui_tools_empty')}
         emptyHint={localize('com_ui_tools_empty_hint')}
         items={toolItems}
-        onAdd={() => openMarketplace('all')}
+        onAdd={() => setOpen(true)}
         onInfo={setDialogItem}
         onRemove={handleQuickRemove}
       />
@@ -211,18 +208,14 @@ export default function ToolsSection({ agentId }: Props) {
           emptyLabel={localize('com_ui_skills_empty')}
           emptyHint={localize('com_ui_skills_empty_hint')}
           items={skillItems}
-          onAdd={() => openMarketplace('skill')}
+          onAdd={() => setSkillsOpen(true)}
           onInfo={setDialogItem}
           onRemove={handleQuickRemove}
         />
       )}
-      {open && (
-        <ToolsMarketplaceDialog
-          open={open}
-          onOpenChange={setOpen}
-          agentId={agentId}
-          initialKind={marketplaceKind}
-        />
+      {open && <ToolsMarketplaceDialog open={open} onOpenChange={setOpen} agentId={agentId} />}
+      {skillsOpen && (
+        <SkillsDialog open={skillsOpen} onOpenChange={setSkillsOpen} agentId={agentId} />
       )}
       <ItemDialog item={dialogItem} agentId={agentId} onClose={() => setDialogItem(null)} />
       <OGDialog

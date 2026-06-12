@@ -1,6 +1,14 @@
-import { CircleHelpIcon, HoverCardTrigger } from '@librechat/client';
+import {
+  Switch,
+  HoverCard,
+  CircleHelpIcon,
+  HoverCardPortal,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@librechat/client';
 import type { ReactNode } from 'react';
 import { useLocalize } from '~/hooks';
+import { ESide } from '~/common';
 
 export const sectionLabelClass =
   'text-[11px] font-medium uppercase tracking-wide text-text-secondary';
@@ -43,5 +51,48 @@ export function InfoTrigger() {
         <CircleHelpIcon className="h-3.5 w-3.5" aria-hidden={true} />
       </button>
     </HoverCardTrigger>
+  );
+}
+
+interface ToggleSettingProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  onCheckedChange: (value: boolean) => void;
+  /** Optional explanation shown in a `?` popover next to the label. */
+  info?: ReactNode;
+}
+
+/**
+ * A subordinate on/off setting: a small secondary label, an optional info
+ * popover, and a switch on the right. Sits below a pattern title without
+ * competing with it for visual weight.
+ */
+export function ToggleSetting({ id, label, checked, onCheckedChange, info }: ToggleSettingProps) {
+  const row = (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <label htmlFor={id} className="truncate text-[13px] font-medium text-text-primary">
+          {label}
+        </label>
+        {info != null && <InfoTrigger />}
+      </div>
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} aria-label={label} />
+    </div>
+  );
+
+  if (info == null) {
+    return row;
+  }
+
+  return (
+    <HoverCard openDelay={50}>
+      {row}
+      <HoverCardPortal>
+        <HoverCardContent side={ESide.Top} className="w-80">
+          <div className="space-y-2 text-sm text-text-secondary">{info}</div>
+        </HoverCardContent>
+      </HoverCardPortal>
+    </HoverCard>
   );
 }

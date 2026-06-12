@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useFormContext, useWatch } from 'react-hook-form';
 import {
   Input,
@@ -12,18 +11,12 @@ import {
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { AgentItem, AgentItemKind, ItemFilter } from './items/types';
 import type { TranslationKeys } from '~/hooks/useLocalize';
-import type { CategoryOption } from './CategoryFilter';
 import type { AgentForm } from '~/common';
-import { useLocalize, useHasAccess, useCategories, useAuthContext } from '~/hooks';
-import {
-  useListSkillsQuery,
-  useGetFavoritesQuery,
-  useGetSkillFavoritesQuery,
-} from '~/data-provider';
+import { useLocalize, useHasAccess } from '~/hooks';
+import { useGetFavoritesQuery } from '~/data-provider';
 import { useAgentPanelContext } from '~/Providers';
 import MarketplaceSidebar from './MarketplaceSidebar';
 import MarketplaceCatalog from './MarketplaceCatalog';
-import CategoryFilter from './CategoryFilter';
 import ItemDialog from './ItemDialog/ItemDialog';
 import AddMcpServerDialog from './ItemDialog/AddMcpServerDialog';
 import { computeToggleAction } from './items/mutations';
@@ -35,7 +28,6 @@ interface ToolsMarketplaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agentId: string;
-  initialKind?: AgentItemKind | 'all';
 }
 
 type View = NonNullable<ItemFilter['view']>;
@@ -48,7 +40,6 @@ export default function ToolsMarketplaceDialog({
   open,
   onOpenChange,
   agentId,
-  initialKind = 'all',
 }: ToolsMarketplaceDialogProps) {
   const localize = useLocalize();
   const { control, getValues, setValue } = useFormContext<AgentForm>();
@@ -58,34 +49,19 @@ export default function ToolsMarketplaceDialog({
     permissionType: PermissionTypes.MCP_SERVERS,
     permission: Permissions.USE,
   });
-  const hasSkillsAccess = useHasAccess({
-    permissionType: PermissionTypes.SKILLS,
-    permission: Permissions.USE,
-  });
 
-  const { user } = useAuthContext();
-  const { data: skillsData, isLoading: isLoadingSkills } = useListSkillsQuery(
-    { limit: 100 },
-    { enabled: hasSkillsAccess },
-  );
   const { data: favorites } = useGetFavoritesQuery();
-  const { data: skillFavorites } = useGetSkillFavoritesQuery();
 
   const favoritedIds = useMemo(() => {
     const ids = new Set<string>();
     for (const favorite of favorites ?? []) {
       if (favorite.agentId != null) ids.add(favorite.agentId);
       if (favorite.spec != null) ids.add(favorite.spec);
-      if (favorite.skillId != null) ids.add(favorite.skillId);
-    }
-    for (const skillId of skillFavorites ?? []) {
-      ids.add(skillId);
     }
     return ids;
-  }, [favorites, skillFavorites]);
+  }, [favorites]);
 
   const tools = (useWatch({ control, name: 'tools' }) ?? []) as string[];
-  const skills = (useWatch({ control, name: 'skills' }) ?? []) as string[];
   const executeCode = (useWatch({ control, name: 'execute_code' }) ?? false) as boolean;
   const webSearch = (useWatch({ control, name: 'web_search' }) ?? false) as boolean;
   const fileSearch = (useWatch({ control, name: 'file_search' }) ?? false) as boolean;
@@ -95,30 +71,14 @@ export default function ToolsMarketplaceDialog({
   const knowledgeFiles = (agent?.knowledge_files ?? []) as Array<[string, unknown]>;
   const codeFiles = (agent?.code_files ?? []) as Array<[string, unknown]>;
 
-  const navigate = useNavigate();
-  const { categories } = useCategories({ className: 'size-4', hasAccess: true });
-  const categoryOptions = useMemo<CategoryOption[]>(
-    () =>
-      ((categories ?? []) as Array<{ value?: string; label: string; icon?: React.ReactNode }>)
-        .filter((c) => Boolean(c.value))
-        .map((c) => ({ value: c.value as string, label: c.label, icon: c.icon })),
-    [categories],
-  );
-
   const [view, setView] = useState<View>('marketplace');
-  const [kind, setKind] = useState<Kind>(initialKind);
-  const [category, setCategory] = useState<string | 'all'>('all');
+  const [kind, setKind] = useState<Kind>('all');
   const [search, setSearch] = useState('');
   const [detailItem, setDetailItem] = useState<AgentItem | null>(null);
   const [addMcpOpen, setAddMcpOpen] = useState(false);
 
   const handleCreateNew = useCallback(
-    (createKind: 'skill' | 'mcp' | 'action') => {
-      if (createKind === 'skill') {
-        navigate('/skills/new');
-        onOpenChange(false);
-        return;
-      }
+    (createKind: 'mcp' | 'action') => {
       if (createKind === 'mcp') {
         setAddMcpOpen(true);
         return;
@@ -133,7 +93,7 @@ export default function ToolsMarketplaceDialog({
         action: undefined,
       } as unknown as AgentItem);
     },
-    [navigate, onOpenChange, localize],
+    [localize],
   );
 
   const agentActions = useMemo(
@@ -147,21 +107,11 @@ export default function ToolsMarketplaceDialog({
         agentsConfig: { capabilities: agentsConfig?.capabilities ?? [] },
         regularTools: regularTools ?? [],
         mcpServersMap: mcpServersMap ?? new Map(),
-        skills: skillsData?.skills ?? [],
+        skills: [],
         actions: agentActions,
-        permissions: { mcp: hasMcpAccess, skills: hasSkillsAccess },
-        currentUserId: user?.id,
+        permissions: { mcp: hasMcpAccess, skills: false },
       }),
-    [
-      agentsConfig,
-      regularTools,
-      mcpServersMap,
-      skillsData,
-      agentActions,
-      hasMcpAccess,
-      hasSkillsAccess,
-      user?.id,
-    ],
+    [agentsConfig, regularTools, mcpServersMap, agentActions, hasMcpAccess],
   );
 
   const selectedItems = useMemo(
@@ -173,7 +123,7 @@ export default function ToolsMarketplaceDialog({
           file_search: fileSearch,
           artifacts,
           tools,
-          skills,
+          skills: [],
           context_files: contextFiles,
           knowledge_files: knowledgeFiles,
           code_files: codeFiles,
@@ -187,7 +137,6 @@ export default function ToolsMarketplaceDialog({
       fileSearch,
       artifacts,
       tools,
-      skills,
       contextFiles,
       knowledgeFiles,
       codeFiles,
@@ -202,20 +151,15 @@ export default function ToolsMarketplaceDialog({
       builtin: catalog.filter((i) => i.kind === 'builtin').length,
       tool: catalog.filter((i) => i.kind === 'tool').length,
       mcp: catalog.filter((i) => i.kind === 'mcp').length,
-      skill: catalog.filter((i) => i.kind === 'skill').length,
+      skill: 0,
       action: catalog.filter((i) => i.kind === 'action').length,
     }),
     [catalog],
   );
 
   const filtered = useMemo(
-    () => applyFilter(catalog, { search, kind, category, view }, { favoritedIds }),
-    [catalog, search, kind, category, view, favoritedIds],
-  );
-
-  const skillsInView = useMemo(
-    () => (kind === 'all' || kind === 'skill') && view !== 'mine',
-    [kind, view],
+    () => applyFilter(catalog, { search, kind, category: 'all', view }, { favoritedIds }),
+    [catalog, search, kind, view, favoritedIds],
   );
 
   const handleToggle = useCallback(
@@ -235,20 +179,6 @@ export default function ToolsMarketplaceDialog({
           setValue(
             'tools',
             current.filter((t) => t !== patch.id),
-            { shouldDirty: true },
-          );
-          break;
-        }
-        case 'skill-add': {
-          const current = (getValues('skills') ?? []) as string[];
-          setValue('skills', Array.from(new Set([...current, patch.id])), { shouldDirty: true });
-          break;
-        }
-        case 'skill-remove': {
-          const current = (getValues('skills') ?? []) as string[];
-          setValue(
-            'skills',
-            current.filter((s) => s !== patch.id),
             { shouldDirty: true },
           );
           break;
@@ -314,10 +244,9 @@ export default function ToolsMarketplaceDialog({
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={localize('com_ui_tools_marketplace_search')}
                   aria-label={localize('com_ui_tools_marketplace_search')}
-                  className="pl-9"
+                  className="bg-transparent pl-9"
                 />
               </div>
-              <CategoryFilter options={categoryOptions} value={category} onChange={setCategory} />
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <MarketplaceCatalog
@@ -326,8 +255,6 @@ export default function ToolsMarketplaceDialog({
                 onToggle={handleCardClick}
                 onConfigure={handleConfigure}
                 view={view}
-                isLoadingSkills={isLoadingSkills}
-                skillsInView={skillsInView}
               />
             </div>
           </div>

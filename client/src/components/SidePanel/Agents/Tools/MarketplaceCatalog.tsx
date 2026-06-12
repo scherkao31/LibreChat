@@ -15,6 +15,10 @@ interface MarketplaceCatalogProps {
   view?: View;
   isLoadingSkills?: boolean;
   skillsInView?: boolean;
+  /** Overrides the default per-view empty message (e.g. "No skills found"). */
+  emptyKey?: TranslationKeys;
+  /** Accessible label for the grid; defaults to the marketplace label. */
+  ariaLabel?: string;
 }
 
 const SKELETON_COUNT = 3;
@@ -50,6 +54,8 @@ export default function MarketplaceCatalog({
   view = 'marketplace',
   isLoadingSkills = false,
   skillsInView = false,
+  emptyKey,
+  ariaLabel,
 }: MarketplaceCatalogProps) {
   const localize = useLocalize();
   const showSkeletons = isLoadingSkills && skillsInView;
@@ -58,7 +64,9 @@ export default function MarketplaceCatalog({
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Search className="size-8 text-text-tertiary opacity-40" aria-hidden="true" />
-        <p className="mt-3 text-sm text-text-secondary">{localize(EMPTY_COPY_KEYS[view])}</p>
+        <p className="mt-3 text-sm text-text-secondary">
+          {localize(emptyKey ?? EMPTY_COPY_KEYS[view])}
+        </p>
       </div>
     );
   }
@@ -66,7 +74,7 @@ export default function MarketplaceCatalog({
   return (
     <ul
       className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
-      aria-label={localize('com_ui_tools_marketplace')}
+      aria-label={ariaLabel ?? localize('com_ui_tools_marketplace')}
       aria-busy={showSkeletons}
     >
       {items.map((item) => (

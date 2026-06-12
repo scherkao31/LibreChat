@@ -1,14 +1,4 @@
-import {
-  LayoutGrid,
-  ListFilter,
-  Wrench,
-  Server,
-  Zap,
-  Workflow,
-  Star,
-  User,
-  Plus,
-} from 'lucide-react';
+import { LayoutGrid, ListFilter, Wrench, Server, Workflow, Star, User, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Button, DropdownPopup } from '@librechat/client';
 import * as Ariakit from '@ariakit/react/menu';
@@ -27,7 +17,7 @@ interface MarketplaceSidebarProps {
   onSelectKind: (kind: Kind) => void;
   counts: Record<AgentItemKind, number>;
   totalCount: number;
-  onCreateNew?: (kind: 'skill' | 'mcp' | 'action') => void;
+  onCreateNew?: (kind: 'mcp' | 'action') => void;
 }
 
 interface SidebarItemProps {
@@ -73,11 +63,6 @@ export default function MarketplaceSidebar({
   const [createOpen, setCreateOpen] = useState(false);
 
   const createItems = [
-    {
-      label: localize('com_ui_tools_kind_skills'),
-      icon: <Zap className="size-4" aria-hidden="true" />,
-      onClick: () => onCreateNew?.('skill'),
-    },
     {
       label: localize('com_ui_tools_kind_mcp'),
       icon: <Server className="size-4" aria-hidden="true" />,
@@ -149,16 +134,6 @@ export default function MarketplaceSidebar({
           onSelectKind('tool');
         }}
         count={counts.tool}
-      />
-      <SidebarItem
-        icon={<Zap className="size-4" />}
-        label={localize('com_ui_tools_kind_skills')}
-        active={activeKind === 'skill' && activeView === 'marketplace'}
-        onClick={() => {
-          onSelectView('marketplace');
-          onSelectKind('skill');
-        }}
-        count={counts.skill}
       />
       <SidebarItem
         icon={<Server className="size-4" />}

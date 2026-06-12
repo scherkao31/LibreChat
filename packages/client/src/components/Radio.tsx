@@ -102,7 +102,7 @@ const Radio = memo(function Radio({
     >
       {selectedIndex >= 0 && isMounted && (
         <div
-          className="pointer-events-none absolute inset-y-0 rounded-md border border-border bg-background shadow-sm transition-all duration-300 ease-out"
+          className="pointer-events-none absolute inset-y-1 left-0 rounded-md border border-border bg-background shadow-sm transition-all duration-300 ease-out"
           style={backgroundStyle}
         />
       )}

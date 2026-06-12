@@ -6,6 +6,7 @@ import type { ControllerRenderProps } from 'react-hook-form';
 import type { AgentForm } from '~/common';
 import OrchestrationPattern from './OrchestrationPattern';
 import { StaticAgentRow, AddAgentSelect, ListMeta, useSelectableAgents } from './AgentList';
+import { ToggleSetting } from './ui';
 import { useLocalize } from '~/hooks';
 
 interface AgentSubagentsProps {
@@ -100,22 +101,17 @@ const AgentSubagents: React.FC<AgentSubagentsProps> = ({ field, currentAgentId }
     >
       {enabled && (
         <>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-col">
-              <label htmlFor={selfId} className="text-sm font-medium text-text-primary">
-                {localize('com_ui_agent_subagents_allow_self')}
-              </label>
-              <span className="text-xs text-text-secondary">
+          <ToggleSetting
+            id={selfId}
+            label={localize('com_ui_agent_subagents_allow_self')}
+            checked={allowSelf}
+            onCheckedChange={setAllowSelf}
+            info={
+              <p className="text-sm text-text-secondary">
                 {localize('com_ui_agent_subagents_allow_self_info')}
-              </span>
-            </div>
-            <Switch
-              id={selfId}
-              checked={allowSelf}
-              onCheckedChange={setAllowSelf}
-              aria-label={localize('com_ui_agent_subagents_allow_self')}
-            />
-          </div>
+              </p>
+            }
+          />
 
           <div className="flex flex-col gap-0.5">
             <ListMeta

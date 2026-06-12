@@ -25,8 +25,13 @@ describe('MarketplaceSidebar', () => {
   test('clicking a kind filter calls onSelectKind', () => {
     const onSelectKind = jest.fn();
     render(<MarketplaceSidebar {...defaultProps} onSelectKind={onSelectKind} />);
-    fireEvent.click(screen.getByText('com_ui_tools_kind_skills'));
-    expect(onSelectKind).toHaveBeenCalledWith('skill');
+    fireEvent.click(screen.getByText('com_ui_tools_kind_tools'));
+    expect(onSelectKind).toHaveBeenCalledWith('tool');
+  });
+
+  test('does not render a Skills kind filter', () => {
+    render(<MarketplaceSidebar {...defaultProps} />);
+    expect(screen.queryByText('com_ui_tools_kind_skills')).not.toBeInTheDocument();
   });
 
   test('clicking favorites switches the view filter', () => {

@@ -2,6 +2,7 @@ import { OGDialog, OGDialogContent } from '@librechat/client';
 import type { AgentItem } from '../items/types';
 import ItemDialogHeader from './ItemDialogHeader';
 import ItemDialogBody from './ItemDialogBody';
+import { cn } from '~/utils';
 
 interface Props {
   item: AgentItem | null;
@@ -10,10 +11,14 @@ interface Props {
 }
 
 export default function ItemDialog({ item, agentId, onClose }: Props) {
+  const isAction = item?.kind === 'action';
   return (
     <OGDialog open={item !== null} onOpenChange={(next) => !next && onClose()}>
       <OGDialogContent
-        className="w-11/12 max-w-[560px] gap-0 overflow-hidden rounded-2xl p-0 md:max-h-[85vh]"
+        className={cn(
+          'w-11/12 gap-0 overflow-hidden rounded-2xl p-0 md:max-h-[85vh]',
+          isAction ? 'max-w-5xl' : 'max-w-[560px]',
+        )}
         data-testid="item-dialog"
       >
         {item && (
