@@ -208,19 +208,20 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
               />
             </div>
           ) : (
-            <SplitText
-              key={`split-text-${greetingText}${user?.name ? '-user' : ''}`}
-              text={greetingText}
-              className={`${getTextSizeClass(greetingText)} font-medium text-text-primary`}
-              delay={50}
-              textAlign="center"
-              animationFrom={{ opacity: 0, transform: 'translate3d(0,50px,0)' }}
-              animationTo={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
-              easing={easings.easeOutCubic}
-              threshold={0}
-              rootMargin="0px"
-              onLineCountChange={handleLineCountChange}
-            />
+            <h2
+              key={`welcome-${greetingText}${user?.name ? '-user' : ''}`}
+              className={`${getTextSizeClass(greetingText)} animate-fadeIn text-center font-medium text-text-primary`}
+            >
+              {greetingText.split(/(Lancya)/g).map((part, i) =>
+                part === 'Lancya' ? (
+                  <span key={i} className="font-bold text-[#DA291C]">
+                    {part}
+                  </span>
+                ) : (
+                  part
+                ),
+              )}
+            </h2>
           )}
         </div>
         {description &&
