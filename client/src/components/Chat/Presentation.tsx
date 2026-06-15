@@ -8,6 +8,7 @@ import { EditorProvider, ArtifactsProvider } from '~/Providers';
 import { useDeleteFilesMutation } from '~/data-provider';
 import Artifacts from '~/components/Artifacts/Artifacts';
 import { SidePanelGroup } from '~/components/SidePanel';
+import LowBalanceBanner from '~/components/Chat/LowBalanceBanner';
 import { useSetFilesToDelete } from '~/hooks';
 import store from '~/store';
 
@@ -79,6 +80,7 @@ export default function Presentation({ children }: { children: React.ReactNode }
     <DragDropWrapper className="relative flex w-full grow overflow-hidden bg-presentation">
       <SidePanelGroup artifacts={artifactsElement}>
         <main className="flex h-full flex-col overflow-y-auto" role="main">
+          <LowBalanceBanner />
           {children}
         </main>
       </SidePanelGroup>
