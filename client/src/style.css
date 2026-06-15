@@ -68,7 +68,7 @@
 }
 html {
   --brand-purple: #DA291C;
-  --presentation: var(--white);
+  --presentation: #F9F8F6;
   --text-primary: var(--gray-800);
   --text-secondary: var(--gray-600);
   --text-secondary-alt: var(--gray-500);
