@@ -1,12 +1,13 @@
 import { useState, memo, useRef } from 'react';
 import * as Menu from '@ariakit/react/menu';
-import { FileText, LogOut } from 'lucide-react';
+import { FileText, LogOut, Sparkles } from 'lucide-react';
 import { LinkIcon, GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { MyFilesModal } from '~/components/Chat/Input/Files/MyFilesModal';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useLocalize } from '~/hooks';
 import Settings from './Settings';
+import UpgradeDialog from './UpgradeDialog';
 
 function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
   const localize = useLocalize();
@@ -17,6 +18,7 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const accountSettingsButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -68,6 +70,11 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
             <DropdownMenuSeparator />
           </>
         )}
+        <Menu.MenuItem onClick={() => setShowUpgrade(true)} className="select-item text-sm">
+          <Sparkles className="icon-md" aria-hidden="true" />
+          Passer a Pro
+        </Menu.MenuItem>
+        <DropdownMenuSeparator />
         <Menu.MenuItem onClick={() => setShowFiles(true)} className="select-item text-sm">
           <FileText className="icon-md" aria-hidden="true" />
           {localize('com_nav_my_files')}
@@ -99,6 +106,9 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
         />
       )}
       {showSettings && <Settings open={showSettings} onOpenChange={setShowSettings} />}
+      {showUpgrade && (
+        <UpgradeDialog open={showUpgrade} onOpenChange={setShowUpgrade} userId={user?.id} />
+      )}
     </Menu.MenuProvider>
   );
 }
