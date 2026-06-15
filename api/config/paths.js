@@ -2,7 +2,11 @@ const path = require('path');
 
 module.exports = {
   root: path.resolve(__dirname, '..', '..'),
-  uploads: path.resolve(__dirname, '..', '..', 'uploads'),
+  // UPLOADS_DIR permet de rediriger les fichiers vers un dossier toujours accessible
+  // en ecriture (ex: /tmp/uploads sur Railway). Par defaut: ./uploads (comportement d'origine).
+  uploads: process.env.UPLOADS_DIR
+    ? path.resolve(process.env.UPLOADS_DIR)
+    : path.resolve(__dirname, '..', '..', 'uploads'),
   clientPath: path.resolve(__dirname, '..', '..', 'client'),
   dist: path.resolve(__dirname, '..', '..', 'client', 'dist'),
   publicPath: path.resolve(__dirname, '..', '..', 'client', 'public'),
