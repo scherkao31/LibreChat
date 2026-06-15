@@ -70,9 +70,11 @@ function AuthLayout({
       highlighted: false,
       intro: '',
       features: [
-        'Chat, recherche web et création de documents',
-        "Crédits offerts à l'inscription",
-        'Vos données restent en Suisse',
+        'Rédiger, éditer et créer du contenu',
+        'Capacité de rechercher sur le Web',
+        'Créer des fichiers et exécuter du code',
+        'Intégrer vos outils via des connecteurs MCP',
+        'Réflexion approfondie pour les tâches complexes',
       ],
     },
     {
@@ -85,9 +87,9 @@ function AuthLayout({
       highlighted: true,
       intro: 'Tout le plan Découverte, plus :',
       features: [
-        'Environ 2,7 millions de crédits par mois',
+        "Plus d'utilisation*",
+        'Mémoire entre les conversations',
         'Accès à tous les modèles',
-        'Support prioritaire',
       ],
     },
     {
@@ -100,9 +102,8 @@ function AuthLayout({
       highlighted: false,
       intro: 'Tout le plan Pro, plus :',
       features: [
-        '8 fois plus de crédits que le plan Pro',
-        'Environ 21,6 millions de crédits par mois',
-        'Idéal pour les gros volumes',
+        "8x plus d'utilisation que la version Pro",
+        'Pour un usage intensif au quotidien',
       ],
     },
   ];
@@ -285,6 +286,9 @@ function AuthLayout({
                     </div>
                   ))}
                 </div>
+                <p className="mt-6 text-center text-xs text-gray-400">
+                  {"*Limites d'utilisation équitable applicables."}
+                </p>
               </div>
             </section>
 

@@ -64,8 +64,15 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
         {startupConfig?.balance?.enabled === true && balanceQuery.data != null && (
           <>
             <div className="text-token-text-secondary ml-3 mr-2 py-2 text-sm" role="note">
-              {localize('com_nav_balance')}:{' '}
-              {new Intl.NumberFormat().format(Math.round(balanceQuery.data.tokenCredits))}
+              {(() => {
+                const bal = balanceQuery.data as { tokenCredits: number; refillAmount?: number };
+                const max =
+                  bal.refillAmount && bal.refillAmount > 0
+                    ? bal.refillAmount
+                    : startupConfig?.balance?.startBalance || bal.tokenCredits || 1;
+                const pct = Math.max(0, Math.min(100, Math.round((bal.tokenCredits / max) * 100)));
+                return `Crédits restants : ${pct}%`;
+              })()}
             </div>
             <DropdownMenuSeparator />
           </>
