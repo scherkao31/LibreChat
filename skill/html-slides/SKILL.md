@@ -1,6 +1,6 @@
 ---
 name: Presentations HTML (slides)
-description: Cree des presentations HTML elegantes et interactives avec reveal.js (le framework de slides web le plus repandu) : titres, listes, images, code colorise, notes d'orateur, transitions. Utiliser cette skill des que l'utilisateur demande une presentation, un slide deck, des diapositives, un pitch, un support de presentation, ou veut transformer des points / un document en slides. Toujours rendre le resultat sous forme d'artifact HTML. Ne pas utiliser pour un simple document texte ou un PDF (utiliser les artifacts document a la place).
+description: "Cree des presentations HTML elegantes et interactives avec reveal.js (le framework de slides web le plus repandu) : titres, listes, images, code colorise, notes d'orateur, transitions. Utiliser cette skill des que l'utilisateur demande une presentation, un slide deck, des diapositives, un pitch, un support de presentation, ou veut transformer des points / un document en slides. Toujours rendre le resultat sous forme d'artifact HTML. Ne pas utiliser pour un simple document texte ou un PDF (utiliser les artifacts document a la place)."
 when-to-use: L'utilisateur veut une presentation, des slides, des diapositives, un pitch deck ou un support visuel a presenter.
 always-apply: false
 ---

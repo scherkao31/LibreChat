@@ -1,7 +1,7 @@
 ---
 name: Droit du bail suisse
 description: Expertise du droit du bail suisse (location de logements et de locaux commerciaux). Couvre la resiliation et le conge, la hausse et la baisse de loyer, le taux hypothecaire de reference, la formule officielle, l'etat des lieux, le depot de garantie, les defauts, les charges, la sous-location, la prolongation et la contestation. Utiliser cette skill des que l'utilisateur evoque un bail, un loyer, un conge, une resiliation, une regie, un proprietaire ou bailleur, un etat des lieux, une garantie, des charges ou un litige locatif en Suisse, MEME s'il ne demande pas explicitement un conseil juridique. Ne pas utiliser pour le droit du bail d'autres pays.
-when-to-use: Toute question liee a un bail a loyer en Suisse (logement ou local commercial) : conge, loyer, charges, etat des lieux, garantie, defauts, voisinage, sous-location, contestation.
+when-to-use: "Toute question liee a un bail a loyer en Suisse (logement ou local commercial) : conge, loyer, charges, etat des lieux, garantie, defauts, voisinage, sous-location, contestation."
 always-apply: false
 ---
 
