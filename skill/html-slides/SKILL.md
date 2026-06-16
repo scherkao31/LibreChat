@@ -24,8 +24,23 @@ Tu crees des **presentations HTML autonomes** avec **reveal.js**, le framework d
 - **Une seule couleur d'accent**, le reste en neutres. Cohérente sur tout le deck. Adapte-la au sujet ou a la marque fournie.
 - **Typographie lisible** : sans-serif, taille genereuse (le texte doit se lire au fond d'une salle).
 - **Visuels plutot que paragraphes** : schemas, chiffres-cles en grand, images plein cadre.
-- **Animations avec parcimonie** : les fragments servent a **reveler progressivement**, pas a decorer.
+- **Animations au service du message** : choreographiees et fluides, jamais gratuites (voir "Impact visuel").
 - **Structure** : slide de titre -> agenda -> corps (un message par slide) -> conclusion / contact.
+
+## Impact visuel (vise le "wow", sans tomber dans le clinquant)
+
+Par defaut, produis une presentation qui a **de l'allure** : jamais des slides plats et ternes. Applique ces techniques :
+
+- **Slide de titre plein ecran marquant** : grand titre (taille 2 a 3em), fond en degrade ou image plein cadre. Donne le ton des la premiere seconde.
+- **Transitions fluides entre slides lies avec `data-auto-animate`** : c'est l'effet le plus impressionnant de reveal.js. Quand deux slides partagent des elements (meme `data-id` ou meme texte), reveal.js les fait **morpher** de l'un a l'autre (un titre qui se deplace, une boite qui grandit, un chiffre qui change). Utilise-le pour les enchainements cles.
+- **Choreographie des fragments** : revele les idees une par une (`fragment`), avec des directions variees (`fade-up`, `fade-left`) pour donner du rythme. Ne balance pas tout d'un coup.
+- **Typographie XXL pour les chiffres-cles et les punchlines** : un chiffre ou une phrase-choc en tres gros (3 a 5em), couleur d'accent, centre. Beaucoup plus fort qu'une puce.
+- **Fonds plein cadre** : degrades (`data-background-gradient`), images (`data-background-image` + overlay sombre pour la lisibilite du texte), voire couleur pleine pour un slide-rupture.
+- **Une couleur d'accent forte** utilisee pour guider l'oeil (chiffres, mots-cles, traits), le reste en neutres.
+- **Micro-animations CSS** pour un element "hero" si pertinent (ex : `@keyframes` pour faire apparaitre/pulser doucement un titre), sans jamais gener la lecture.
+- **Transitions coherentes** : choisis UNE transition (`slide` ou `fade`) et garde-la sur tout le deck.
+
+Garde-fou : chaque effet doit **servir le message et rester lisible**. Pas de clignotements, pas d'effets qui se battent entre eux. Impressionnant = elegant et fluide, pas charge.
 
 ## Squelette minimal
 
