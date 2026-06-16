@@ -6,6 +6,9 @@ FROM node:24.16.0-alpine AS node
 RUN apk upgrade --no-cache
 RUN apk add --no-cache jemalloc
 RUN apk add --no-cache python3 py3-pip uv
+# LibreOffice : apercu haute fidelite des fichiers Office (xlsx/docx/pptx) dans le viewer.
+# Active via l'env OFFICE_PREVIEW_LIBREOFFICE (ex: "xlsx,docx,pptx"). Fournit soffice sur le PATH.
+RUN apk add --no-cache libreoffice-calc libreoffice-writer libreoffice-impress font-dejavu
 
 # Set environment variable to use jemalloc
 ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
