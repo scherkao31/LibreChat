@@ -369,6 +369,12 @@ export function applyModelSpecEphemeralAgent({
     file_search: modelSpec.fileSearch ?? false,
     execute_code: modelSpec.executeCode ?? false,
     artifacts: modelSpec.artifacts === true ? 'default' : modelSpec.artifacts || '',
+    // Skills toujours actives par defaut quand le spec le demande (modelSpec.skills:true
+    // ou une liste de skills). Le modele choisit tout seul la skill pertinente, comme
+    // sur Claude. Sans ca, l'utilisateur devait cocher "Skills" a chaque conversation.
+    skills:
+      modelSpec.skills === true ||
+      (Array.isArray(modelSpec.skills) && modelSpec.skills.length > 0),
   };
 
   // For existing conversations, layer per-conversation localStorage overrides
@@ -380,6 +386,7 @@ export function applyModelSpecEphemeralAgent({
       ['web_search', LocalStorageKeys.LAST_WEB_SEARCH_TOGGLE_],
       ['file_search', LocalStorageKeys.LAST_FILE_SEARCH_TOGGLE_],
       ['artifacts', LocalStorageKeys.LAST_ARTIFACTS_TOGGLE_],
+      ['skills', LocalStorageKeys.LAST_SKILLS_TOGGLE_],
     ];
 
     for (const [toolKey, storagePrefix] of toolStorageMap) {
