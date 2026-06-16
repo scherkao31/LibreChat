@@ -331,8 +331,19 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
           size: originalFile.size,
         };
 
-        if (_toolResource != null && _toolResource !== '') {
-          initialExtendedFile.tool_resource = _toolResource;
+        // Lancya : auto-routage selon le type du fichier quand aucune destination
+        // n'est imposee. Image -> envoyee au modele (vision). Tout le reste
+        // (PDF, docx, txt...) -> RAG (file_search), car le modele ne sait pas lire
+        // un fichier brut (l'API renvoie sinon "Unsupported chat content part type: file").
+        const isImageFile = originalFile.type.split('/')[0] === 'image';
+        const resolvedToolResource =
+          _toolResource != null && _toolResource !== ''
+            ? _toolResource
+            : isImageFile
+              ? undefined
+              : EToolResources.file_search;
+        if (resolvedToolResource != null && resolvedToolResource !== '') {
+          initialExtendedFile.tool_resource = resolvedToolResource;
         }
 
         // Add file immediately to show in UI
