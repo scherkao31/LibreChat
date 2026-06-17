@@ -118,6 +118,11 @@ const MessageRender = memo(function MessageRender({
   });
   const fontSize = useAtomValue(fontSizeAtom);
   const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
+  /* En-tete par message (avatar + nom) masque pour un rendu epure facon Claude :
+   * mes messages sont en bulle a droite, l'IA a gauche sur fond normal, sans nom ni
+   * avatar repetes. Type `boolean` (et non `false` litteral) pour garder l'avatar/nom
+   * type-checks et eviter tout warning de branche morte. Repasser a true pour restaurer. */
+  const showMessageHeader: boolean = false;
 
   const handleRegenerateMessage = useCallback(() => regenerateMessage(), [regenerateMessage]);
   const hasNoChildren = !(msg?.children?.length ?? 0);
@@ -191,9 +196,11 @@ const MessageRender = memo(function MessageRender({
         baseClasses.chat,
         conditionalClasses.focus,
         'message-render',
+        // Mes messages sont alignes a droite (style bulle, comme Claude).
+        msg.isCreatedByUser === true && 'justify-end',
       )}
     >
-      {!hasParallelContent && (
+      {!hasParallelContent && showMessageHeader && (
         <div className="relative flex flex-shrink-0 flex-col items-center">
           <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full">
             <MessageIcon iconData={iconData} assistant={assistant} agent={agent} />
@@ -204,11 +211,15 @@ const MessageRender = memo(function MessageRender({
       <div
         className={cn(
           'relative flex flex-col',
-          hasParallelContent ? 'w-full' : 'w-11/12',
-          msg.isCreatedByUser ? 'user-turn' : 'agent-turn',
+          msg.isCreatedByUser === true
+            ? 'max-w-[85%]'
+            : hasParallelContent
+              ? 'w-full'
+              : 'w-11/12',
+          msg.isCreatedByUser ? 'user-turn items-end' : 'agent-turn',
         )}
       >
-        {!hasParallelContent && (
+        {!hasParallelContent && showMessageHeader && (
           <h2 className={cn('select-none font-semibold', fontSize)}>
             <span className="sr-only">{getHeaderPrefixForScreenReader(msg, localize)}</span>
             {messageLabel}
@@ -216,7 +227,13 @@ const MessageRender = memo(function MessageRender({
         )}
 
         <div className="flex flex-col gap-1">
-          <div className="flex min-h-[20px] max-w-full flex-grow flex-col gap-0">
+          <div
+            className={cn(
+              'flex min-h-[20px] max-w-full flex-grow flex-col gap-0',
+              // Bulle coloree pour mes messages (cote utilisateur).
+              msg.isCreatedByUser === true && 'rounded-3xl bg-surface-tertiary px-4 py-2.5',
+            )}
+          >
             <MessageContext.Provider value={messageContextValue}>
               <MessageContent
                 ask={ask}
