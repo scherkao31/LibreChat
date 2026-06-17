@@ -4,6 +4,7 @@ import { useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions, apiBaseUrl } from 'librechat-data-provider';
 import Mermaid, { MermaidErrorBoundary } from '~/components/Messages/Content/Mermaid';
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
+import SuggestedChoices from '~/components/Chat/Messages/Content/SuggestedChoices';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
 import { useCodeBlockContext } from '~/Providers';
@@ -39,10 +40,14 @@ export const code: React.ElementType = memo(function MarkdownCode({
   const lang = match && match[1];
   const isMath = lang === 'math';
   const isMermaid = lang === 'mermaid';
+  // Widget de reponses suggerees (underscore : la regex \w ne capte pas le tiret).
+  const isChoices = lang === 'lancya_choices';
   const isSingleLine = isSingleLineCode(children);
 
   const { getNextIndex, resetCounter } = useCodeBlockContext();
-  const blockIndex = useRef(getNextIndex(isMath || isMermaid || isSingleLine)).current;
+  const blockIndex = useRef(
+    getNextIndex(isMath || isMermaid || isChoices || isSingleLine),
+  ).current;
 
   useEffect(() => {
     resetCounter();
@@ -50,6 +55,9 @@ export const code: React.ElementType = memo(function MarkdownCode({
 
   if (isMath) {
     return <>{children}</>;
+  } else if (isChoices) {
+    const content = typeof children === 'string' ? children : String(children);
+    return <SuggestedChoices raw={content} />;
   } else if (isMermaid) {
     const content = typeof children === 'string' ? children : String(children);
     return (
