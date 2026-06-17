@@ -489,9 +489,9 @@ const requestPasswordReset = async (req) => {
   if (emailEnabled) {
     await sendEmail({
       email: user.email,
-      subject: 'Password Reset Request',
+      subject: `Réinitialisation de votre mot de passe ${process.env.APP_TITLE || 'Lancya'}`,
       payload: {
-        appName: process.env.APP_TITLE || 'LibreChat',
+        appName: process.env.APP_TITLE || 'Lancya',
         name: user.name || user.username || user.email,
         link: link,
         year: new Date().getFullYear(),
@@ -540,9 +540,9 @@ const resetPassword = async (userId, token, password) => {
   if (checkEmailConfig()) {
     await sendEmail({
       email: user.email,
-      subject: 'Password Reset Successfully',
+      subject: `Votre mot de passe ${process.env.APP_TITLE || 'Lancya'} a été modifié`,
       payload: {
-        appName: process.env.APP_TITLE || 'LibreChat',
+        appName: process.env.APP_TITLE || 'Lancya',
         name: user.name || user.username || user.email,
         year: new Date().getFullYear(),
       },
@@ -872,9 +872,9 @@ const resendVerificationEmail = async (req) => {
 
     await sendEmail({
       email: user.email,
-      subject: 'Verify your email',
+      subject: `Vérifiez votre adresse sur ${process.env.APP_TITLE || 'Lancya'}`,
       payload: {
-        appName: process.env.APP_TITLE || 'LibreChat',
+        appName: process.env.APP_TITLE || 'Lancya',
         name: user.name || user.username || user.email,
         verificationLink: verificationLink,
         year: new Date().getFullYear(),
