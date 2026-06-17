@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { cn } from '~/utils';
 import { useMessageContext } from '~/Providers';
 import { useSubmitMessage } from '~/hooks';
