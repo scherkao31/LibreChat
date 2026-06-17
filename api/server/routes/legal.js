@@ -125,6 +125,9 @@ const PRIVACY = layout(
   des pages publiques sur Internet ; les requetes correspondantes quittent donc nos serveurs pour
   atteindre les sites consultes. Stripe ne recoit que des donnees de facturation, jamais vos contenus
   metier.</p>
+  <p>Nous rapatrions progressivement l'hebergement applicatif, aujourd'hui en Europe, vers la Suisse
+  (Infomaniak) : cette migration est prevue dans les prochaines semaines, avec pour objectif d'avoir
+  l'ensemble de la chaine en Suisse.</p>
 
   <h2>5. Finalites</h2>
   <ul>
