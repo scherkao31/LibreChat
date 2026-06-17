@@ -1130,6 +1130,9 @@ export const interfaceSchema = z
       })
       .optional(),
     termsOfService: termsOfServiceSchema.optional(),
+    /** URL du bouton "Aide & FAQ" du menu compte. Permet de pointer vers notre
+     *  propre page (sinon le serveur retombe sur HELP_AND_FAQ_URL puis un defaut). */
+    helpAndFaqURL: z.string().optional(),
     customWelcome: z.string().optional(),
     mcpServers: mcpServersSchema.optional(),
     modelSelect: z.boolean().optional(),

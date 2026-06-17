@@ -279,6 +279,14 @@ router.get('/', async function (req, res) {
       ...(rum ? { rum } : {}),
     };
 
+    // Bouton "Aide & FAQ" du menu compte : notre page si definie dans le YAML
+    // (interface.helpAndFaqURL), sinon l'env HELP_AND_FAQ_URL, sinon notre page
+    // par defaut. On ne retombe jamais sur librechat.ai.
+    payload.helpAndFaqURL =
+      appConfig?.interfaceConfig?.helpAndFaqURL ||
+      process.env.HELP_AND_FAQ_URL ||
+      'https://www.lancya.ch/aide';
+
     const webSearch = buildWebSearchConfig(appConfig);
     if (webSearch) {
       payload.webSearch = webSearch;
