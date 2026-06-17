@@ -112,9 +112,12 @@ export default function Message(props: TMessageProps) {
               baseClasses.chat,
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-xheavy',
               'message-render',
+              // Mes messages sont alignes a droite (style bulle, comme Claude).
+              isCreatedByUser === true && 'justify-end',
             )}
           >
-            {!hasParallelContent && (
+            {/* Avatar : uniquement cote IA. Cote utilisateur, la bulle + l'alignement suffisent. */}
+            {!hasParallelContent && isCreatedByUser !== true && (
               <div className="relative flex flex-shrink-0 flex-col items-center">
                 <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full pt-0.5">
                   <MessageIcon iconData={iconData} assistant={assistant} agent={agent} />
@@ -124,11 +127,16 @@ export default function Message(props: TMessageProps) {
             <div
               className={cn(
                 'relative flex flex-col',
-                hasParallelContent ? 'w-full' : 'w-11/12',
-                isCreatedByUser ? 'user-turn' : 'agent-turn',
+                isCreatedByUser === true
+                  ? 'max-w-[85%]'
+                  : hasParallelContent
+                    ? 'w-full'
+                    : 'w-11/12',
+                isCreatedByUser ? 'user-turn items-end' : 'agent-turn',
               )}
             >
-              {!hasParallelContent && (
+              {/* Nom : uniquement cote IA (on retire le nom repete cote utilisateur). */}
+              {!hasParallelContent && isCreatedByUser !== true && (
                 <h2 className={cn('select-none font-semibold text-text-primary', fontSize)}>
                   <span className="sr-only">
                     {getHeaderPrefixForScreenReader(message, localize)}
@@ -137,7 +145,13 @@ export default function Message(props: TMessageProps) {
                 </h2>
               )}
               <div className="flex flex-col gap-1">
-                <div className="flex min-h-[20px] max-w-full flex-grow flex-col gap-0">
+                <div
+                  className={cn(
+                    'flex min-h-[20px] max-w-full flex-grow flex-col gap-0',
+                    // Bulle coloree pour mes messages (cote utilisateur).
+                    isCreatedByUser === true && 'rounded-3xl bg-surface-tertiary px-4 py-2.5',
+                  )}
+                >
                   <ContentParts
                     edit={edit}
                     isLast={isLast}
