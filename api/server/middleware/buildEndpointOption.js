@@ -57,7 +57,9 @@ async function buildEndpointOption(req, res, next) {
 
   const appConfig = req.config;
   let appliedModelSpecPrivateFields = new Set();
-  if (appConfig.modelSpecs?.list?.length && appConfig.modelSpecs?.enforce) {
+  // Les agents portent leur propre modele + instructions et ne passent pas par un modelSpec.
+  // On exempte donc l'endpoint "agents" de l'enforce des modelSpecs (sinon : "No model spec selected").
+  if (!isAgents && appConfig.modelSpecs?.list?.length && appConfig.modelSpecs?.enforce) {
     /** @type {{ list: TModelSpec[] }}*/
     const { list } = appConfig.modelSpecs;
     const { spec } = parsedBody;
