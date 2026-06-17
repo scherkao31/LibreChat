@@ -9,7 +9,7 @@ interface ConvoLinkProps {
   onRename: () => void;
   isSmallScreen: boolean;
   localize: (key: any, options?: any) => string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const ConvoLink: React.FC<ConvoLinkProps> = ({
