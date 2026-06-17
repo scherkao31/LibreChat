@@ -1,4 +1,5 @@
-import { memo, useMemo, useCallback } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
+import { Check, ArrowUp } from 'lucide-react';
 import { cn } from '~/utils';
 import { useMessageContext } from '~/Providers';
 import { useSubmitMessage } from '~/hooks';
@@ -13,9 +14,15 @@ import { useSubmitMessage } from '~/hooks';
  *   { "question": "Pour quel canton ?", "choices": ["Geneve", "Vaud", "Autre"] }
  *   ```
  *
- * Chaque choix devient un bouton ; au clic, sa valeur est envoyee comme NOUVEAU
- * message utilisateur (meme mecanisme que les amorces de conversation). On evite
- * ainsi de faire taper a l'utilisateur ce qu'il aurait de toute facon ecrit.
+ * Ce sont les reponses DE L'UTILISATEUR (ce qu'il dirait de toute facon), donc on
+ * les presente cote utilisateur : pleine largeur, empilees verticalement, en bas
+ * du message, juste au-dessus de la zone de saisie.
+ *
+ * Deux modes :
+ *  - simple (defaut) : un clic = envoi immediat de la valeur comme prochain message.
+ *  - multiple ("multiple": true) : cases a cocher, l'utilisateur en selectionne
+ *    plusieurs puis valide ; les valeurs sont jointes en un seul message.
+ * Dans les deux cas, un indice rappelle qu'il peut aussi ecrire sa propre reponse.
  *
  * Branche UNIQUEMENT dans le composant `code` du chat (pas `codeNoExecution`),
  * donc les contextes chat (useSubmitMessage / useMessageContext) sont toujours
@@ -30,10 +37,16 @@ type ParsedChoice = { label: string; value: string };
 type ChoicesPayload = {
   question?: string;
   choices: ParsedChoice[];
+  multiple: boolean;
 };
 
-/** Parse tolerant : accepte `choices: ["A","B"]` ou `[{label, value}]`. Renvoie
- *  null tant que le JSON est incomplet/invalide (cas normal pendant le stream). */
+function readBool(value: unknown): boolean {
+  return value === true || value === 'true';
+}
+
+/** Parse tolerant : accepte `choices: ["A","B"]` ou `[{label, value}]`, et
+ *  `"multiple": true` pour le mode multi-selection. Renvoie null tant que le JSON
+ *  est incomplet/invalide (cas normal pendant le stream). */
 function parseChoices(raw: string): ChoicesPayload | null {
   const text = raw.trim();
   if (!text.startsWith('{') && !text.startsWith('[')) {
@@ -46,10 +59,11 @@ function parseChoices(raw: string): ChoicesPayload | null {
     return null;
   }
 
+  const isObject = !Array.isArray(data) && data != null && typeof data === 'object';
   // Forme courte : un tableau direct de choix.
   const rawChoices = Array.isArray(data)
     ? data
-    : data != null && typeof data === 'object'
+    : isObject
       ? (data as { choices?: unknown }).choices
       : undefined;
 
@@ -68,9 +82,7 @@ function parseChoices(raw: string): ChoicesPayload | null {
       const obj = item as { label?: unknown; value?: unknown };
       const label = typeof obj.label === 'string' ? obj.label.trim() : '';
       const value =
-        typeof obj.value === 'string' && obj.value.trim().length > 0
-          ? obj.value.trim()
-          : label;
+        typeof obj.value === 'string' && obj.value.trim().length > 0 ? obj.value.trim() : label;
       if (label) {
         choices.push({ label, value });
       }
@@ -82,23 +94,26 @@ function parseChoices(raw: string): ChoicesPayload | null {
   }
 
   const question =
-    !Array.isArray(data) && data != null && typeof data === 'object'
-      ? typeof (data as { question?: unknown }).question === 'string'
-        ? (data as { question: string }).question.trim()
-        : undefined
+    isObject && typeof (data as { question?: unknown }).question === 'string'
+      ? (data as { question: string }).question.trim()
       : undefined;
+  const multiple = isObject
+    ? readBool((data as { multiple?: unknown; multiSelect?: unknown }).multiple) ||
+      readBool((data as { multiSelect?: unknown }).multiSelect)
+    : false;
 
-  return { question: question || undefined, choices };
+  return { question: question || undefined, choices, multiple };
 }
 
 const SuggestedChoices = memo(function SuggestedChoices({ raw }: { raw: string }) {
   const payload = useMemo(() => parseChoices(raw), [raw]);
   const { isSubmitting = false } = useMessageContext();
   const { submitMessage } = useSubmitMessage();
+  const [selected, setSelected] = useState<Set<number>>(() => new Set());
 
-  const handleClick = useCallback(
+  const send = useCallback(
     (value: string) => {
-      if (isSubmitting) {
+      if (isSubmitting || !value.trim()) {
         return;
       }
       submitMessage({ text: value });
@@ -106,39 +121,103 @@ const SuggestedChoices = memo(function SuggestedChoices({ raw }: { raw: string }
     [isSubmitting, submitMessage],
   );
 
+  const toggle = useCallback((idx: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  }, []);
+
   // Tant que le bloc n'est pas un JSON valide et complet (stream en cours), on
   // n'affiche rien : pas de bouton a moitie forme, pas de scintillement.
   if (!payload) {
     return null;
   }
 
+  const { question, choices, multiple } = payload;
+
+  const sendSelection = () => {
+    const value = choices
+      .filter((_, idx) => selected.has(idx))
+      .map((c) => c.value)
+      .join(', ');
+    send(value);
+  };
+
+  const rowBase =
+    'flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy';
+
   return (
     <div
-      className="not-prose my-3 flex flex-col gap-2 font-sans"
+      className="not-prose mt-3 flex w-full flex-col items-stretch gap-2 font-sans"
       role="group"
-      aria-label={payload.question ?? 'Suggestions'}
+      aria-label={question ?? 'Reponses suggerees'}
     >
-      {payload.question && (
-        <span className="text-sm text-text-secondary">{payload.question}</span>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {payload.choices.map((choice, idx) => (
+      {question && <span className="px-1 text-sm text-text-secondary">{question}</span>}
+
+      {choices.map((choice, idx) => {
+        const isChecked = selected.has(idx);
+        return (
           <button
             key={`choice-${idx}-${choice.label}`}
             type="button"
             disabled={isSubmitting}
-            onClick={() => handleClick(choice.value)}
+            aria-pressed={multiple ? isChecked : undefined}
+            onClick={() => (multiple ? toggle(idx) : send(choice.value))}
             className={cn(
-              'rounded-2xl border border-border-medium bg-surface-secondary px-3.5 py-2 text-left text-sm text-text-primary',
-              'transition-colors duration-150 hover:border-border-heavy hover:bg-surface-tertiary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+              rowBase,
+              'bg-surface-tertiary text-text-primary hover:border-border-heavy hover:bg-surface-hover',
+              multiple && isChecked
+                ? 'border-border-heavy'
+                : 'border-border-medium',
               isSubmitting && 'cursor-not-allowed opacity-50',
             )}
           >
-            {choice.label}
+            {multiple && (
+              <span
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
+                  isChecked
+                    ? 'border-surface-submit bg-surface-submit text-white'
+                    : 'border-border-heavy',
+                )}
+                aria-hidden="true"
+              >
+                {isChecked && <Check size={14} strokeWidth={3} />}
+              </span>
+            )}
+            <span className="flex-1">{choice.label}</span>
           </button>
-        ))}
-      </div>
+        );
+      })}
+
+      {multiple && (
+        <button
+          type="button"
+          disabled={isSubmitting || selected.size === 0}
+          onClick={sendSelection}
+          className={cn(
+            'mt-1 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium',
+            'bg-surface-submit text-white transition-colors duration-150 hover:bg-surface-submit-hover',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+            (isSubmitting || selected.size === 0) && 'cursor-not-allowed opacity-40',
+          )}
+        >
+          <ArrowUp size={16} strokeWidth={2.5} />
+          {selected.size > 0
+            ? `Envoyer ma selection (${selected.size})`
+            : 'Selectionne une ou plusieurs options'}
+        </button>
+      )}
+
+      <span className="px-1 text-xs text-text-secondary">
+        ou ecris directement ta reponse ci-dessous.
+      </span>
     </div>
   );
 });
