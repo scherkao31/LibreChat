@@ -279,6 +279,9 @@ const startServer = async () => {
   /** 404 for unmatched API routes */
   app.use('/api', apiNotFound);
 
+  /** Pages legales Lancya (/confidentialite, /conditions) servies hors SPA. */
+  app.use('/', routes.legal);
+
   /** SPA fallback - serve index.html for all unmatched routes */
   app.use(createSpaFallback(sendIndexHtml));
 

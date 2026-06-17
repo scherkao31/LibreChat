@@ -35,10 +35,12 @@ const keys = require('./keys');
 const user = require('./user');
 const mcp = require('./mcp');
 const rum = require('./rum');
+const legal = require('./legal');
 
 module.exports = {
   rum,
   mcp,
+  legal,
   auth,
   adminAuth,
   adminConfig,
