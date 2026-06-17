@@ -5,15 +5,14 @@ import { useEffect } from 'react';
  * Les boutons ouvrent le lien de paiement Stripe en passant l'identifiant
  * Lancya (client_reference_id) pour relier le paiement au bon compte.
  *
- * NOTE : liens de paiement en mode TEST. A remplacer par les liens "live"
- * au moment du passage en production.
+ * Liens de paiement en mode LIVE (production).
  */
 const PLANS = [
   {
     key: 'pro',
     name: 'Pro',
     price: '17',
-    paymentLink: 'https://buy.stripe.com/test_3cI8wPdLdb3I4TBbwbcs800',
+    paymentLink: 'https://buy.stripe.com/cNifZh9wZ3Mw2J70Xq1gs01',
     highlighted: true,
     features: [
       'Tous les modeles, dont Lancya (le plus avance)',
@@ -25,7 +24,7 @@ const PLANS = [
     key: 'premium',
     name: 'Premium',
     price: '90',
-    paymentLink: 'https://buy.stripe.com/test_aFafZh7mP7RwgCjfMrcs801',
+    paymentLink: 'https://buy.stripe.com/4gM6oHfVncj297vgWo1gs00',
     highlighted: false,
     features: [
       'Tout le plan Pro',
