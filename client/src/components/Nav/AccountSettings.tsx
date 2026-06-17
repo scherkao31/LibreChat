@@ -8,6 +8,7 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import { useLocalize } from '~/hooks';
 import Settings from './Settings';
 import UpgradeDialog from './UpgradeDialog';
+import { getPlanKey, PLAN_LABEL } from '~/utils/plans';
 
 function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
   const localize = useLocalize();
@@ -19,6 +20,7 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
   const [showSettings, setShowSettings] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const planKey = getPlanKey(balanceQuery.data as { refillAmount?: number } | undefined);
   const accountSettingsButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -57,8 +59,24 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
           translate: collapsed ? '4px 0' : '0 -4px',
         }}
       >
-        <div className="text-token-text-secondary ml-3 mr-2 py-2 text-sm" role="note">
-          {user?.email ?? localize('com_nav_user')}
+        <div
+          className="text-token-text-secondary ml-3 mr-2 flex items-center justify-between gap-2 py-2 text-sm"
+          role="note"
+        >
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+            {user?.email ?? localize('com_nav_user')}
+          </span>
+          {startupConfig?.balance?.enabled === true && balanceQuery.data != null && (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                planKey === 'free'
+                  ? 'bg-surface-tertiary text-text-secondary'
+                  : 'bg-[#1F3A5F] text-white'
+              }`}
+            >
+              {PLAN_LABEL[planKey]}
+            </span>
+          )}
         </div>
         <DropdownMenuSeparator />
         {startupConfig?.balance?.enabled === true && balanceQuery.data != null && (
@@ -79,7 +97,7 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
         )}
         <Menu.MenuItem onClick={() => setShowUpgrade(true)} className="select-item text-sm">
           <Sparkles className="icon-md" aria-hidden="true" />
-          Passer a Pro
+          Voir les forfaits
         </Menu.MenuItem>
         <DropdownMenuSeparator />
         <Menu.MenuItem onClick={() => setShowFiles(true)} className="select-item text-sm">
@@ -114,7 +132,12 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
       )}
       {showSettings && <Settings open={showSettings} onOpenChange={setShowSettings} />}
       {showUpgrade && (
-        <UpgradeDialog open={showUpgrade} onOpenChange={setShowUpgrade} userId={user?.id} />
+        <UpgradeDialog
+          open={showUpgrade}
+          onOpenChange={setShowUpgrade}
+          userId={user?.id}
+          currentPlan={planKey}
+        />
       )}
     </Menu.MenuProvider>
   );

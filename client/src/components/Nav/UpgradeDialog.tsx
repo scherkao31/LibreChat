@@ -1,47 +1,30 @@
 import { useEffect } from 'react';
+import { Check } from 'lucide-react';
+import {
+  PAID_PLANS,
+  PLAN_LABEL,
+  PLAN_RANK,
+  BILLING_CONTACT_EMAIL,
+  type PlanKey,
+} from '~/utils/plans';
 
 /**
- * Page d'upgrade Lancya : deux plans (Pro / Premium).
- * Les boutons ouvrent le lien de paiement Stripe en passant l'identifiant
- * Lancya (client_reference_id) pour relier le paiement au bon compte.
- *
- * Liens de paiement en mode LIVE (production).
+ * Pop-up des forfaits Lancya. Source unique des forfaits dans utils/plans.ts
+ * (partagee avec la landing). Les boutons s'adaptent au forfait actuel :
+ * - forfait courant : "Votre forfait actuel" (desactive)
+ * - superieur : "Passer a X" (ouvre le paiement Stripe, en passant le userId)
+ * - inferieur : "Retrograder vers X" (contact, pour eviter un double abonnement)
  */
-const PLANS = [
-  {
-    key: 'pro',
-    name: 'Pro',
-    price: '17',
-    paymentLink: 'https://buy.stripe.com/cNifZh9wZ3Mw2J70Xq1gs01',
-    highlighted: true,
-    features: [
-      'Tous les modeles, dont Lancya (le plus avance)',
-      'Recherche web et creation de documents',
-      'Environ 2,7 millions de credits par mois',
-    ],
-  },
-  {
-    key: 'premium',
-    name: 'Premium',
-    price: '90',
-    paymentLink: 'https://buy.stripe.com/4gM6oHfVncj297vgWo1gs00',
-    highlighted: false,
-    features: [
-      'Tout le plan Pro',
-      '8 fois plus de credits (environ 21,6 millions / mois)',
-      'Pour un usage intensif',
-    ],
-  },
-];
-
 function UpgradeDialog({
   open,
   onOpenChange,
   userId,
+  currentPlan = 'free',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId?: string;
+  currentPlan?: PlanKey;
 }) {
   useEffect(() => {
     if (!open) {
@@ -61,6 +44,12 @@ function UpgradeDialog({
     window.open(url, '_blank');
   };
 
+  const contactToChange = (planName: string) => {
+    window.location.href = `mailto:${BILLING_CONTACT_EMAIL}?subject=${encodeURIComponent(
+      `Changer de forfait Lancya vers ${planName}`,
+    )}`;
+  };
+
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
@@ -71,48 +60,77 @@ function UpgradeDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-1 text-center text-2xl font-bold text-text-primary">
-          Passez a la vitesse superieure
+          {currentPlan === 'free' ? 'Choisissez votre forfait' : 'Votre forfait Lancya'}
         </h2>
         <p className="mb-6 text-center text-sm text-text-secondary">
-          Plus de credits, votre IA hébergée en Suisse sans interruption.
+          Forfait actuel : <span className="font-semibold">{PLAN_LABEL[currentPlan]}</span>
+          {currentPlan === 'free' && '. Vos données restent hébergées en Suisse, sans interruption.'}
         </p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {PLANS.map((plan) => (
-            <div
-              key={plan.key}
-              className={`flex flex-col rounded-xl border p-6 ${
-                plan.highlighted
-                  ? 'border-[#DA291C] ring-1 ring-[#DA291C]'
-                  : 'border-gray-200 dark:border-gray-700'
-              }`}
-            >
-              <div className="text-lg font-semibold text-text-primary">Lancya {plan.name}</div>
-              <div className="mb-4 mt-1">
-                <span className="text-3xl font-bold text-text-primary">{plan.price}</span>
-                <span className="text-sm text-text-secondary"> CHF / mois</span>
-              </div>
-              <ul className="mb-6 flex-grow space-y-2 text-sm text-text-secondary">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2">
-                    <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[#DA291C]" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() => subscribe(plan.paymentLink)}
-                className={`w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
-                  plan.highlighted
-                    ? 'bg-[#DA291C] text-white hover:bg-[#b01f15]'
-                    : 'bg-surface-tertiary text-text-primary hover:bg-surface-hover'
+          {PAID_PLANS.map((plan) => {
+            const isCurrent = plan.key === currentPlan;
+            const isUpgrade = PLAN_RANK[plan.key] > PLAN_RANK[currentPlan];
+
+            return (
+              <div
+                key={plan.key}
+                className={`flex flex-col rounded-xl border p-6 ${
+                  isCurrent
+                    ? 'border-[#1F3A5F] ring-1 ring-[#1F3A5F]'
+                    : 'border-gray-200 dark:border-gray-700'
                 }`}
               >
-                Choisir {plan.name}
-              </button>
-            </div>
-          ))}
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-text-primary">
+                    Lancya {plan.name}
+                  </span>
+                  {isCurrent && (
+                    <span className="rounded-full bg-[#1F3A5F] px-2 py-0.5 text-xs font-medium text-white">
+                      Actuel
+                    </span>
+                  )}
+                </div>
+                <div className="mb-4 mt-1">
+                  <span className="text-3xl font-bold text-text-primary">{plan.price}</span>
+                  <span className="text-sm text-text-secondary"> CHF / mois</span>
+                </div>
+                <ul className="mb-6 flex-grow space-y-2 text-sm text-text-secondary">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#1F3A5F]" aria-hidden="true" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {isCurrent ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full cursor-default rounded-xl bg-surface-tertiary px-4 py-2.5 text-sm font-medium text-text-secondary"
+                  >
+                    Votre forfait actuel
+                  </button>
+                ) : isUpgrade ? (
+                  <button
+                    type="button"
+                    onClick={() => subscribe(plan.paymentLink)}
+                    className="w-full rounded-xl bg-[#1F3A5F] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#16293f]"
+                  >
+                    Passer à {plan.name}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => contactToChange(plan.name)}
+                    className="w-full rounded-xl bg-surface-tertiary px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover"
+                  >
+                    Rétrograder vers {plan.name}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <button
@@ -120,7 +138,7 @@ function UpgradeDialog({
           onClick={() => onOpenChange(false)}
           className="mt-6 w-full text-center text-sm text-text-secondary hover:underline"
         >
-          Plus tard
+          Fermer
         </button>
       </div>
     </div>

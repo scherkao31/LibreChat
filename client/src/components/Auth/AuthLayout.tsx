@@ -6,9 +6,11 @@ import SocialLoginRender from './SocialLoginRender';
 import { BlinkAnimation } from './BlinkAnimation';
 import { Banner } from '../Banners';
 import Footer from './Footer';
+import { PRO_PAYMENT_LINK, PREMIUM_PAYMENT_LINK } from '~/utils/plans';
 
-const PAYMENT_LINK_PRO = 'https://buy.stripe.com/cNifZh9wZ3Mw2J70Xq1gs01';
-const PAYMENT_LINK_PREMIUM = 'https://buy.stripe.com/4gM6oHfVncj297vgWo1gs00';
+// Source unique des liens de paiement (partagee avec le pop-up d'upgrade) : voir utils/plans.ts
+const PAYMENT_LINK_PRO = PRO_PAYMENT_LINK;
+const PAYMENT_LINK_PREMIUM = PREMIUM_PAYMENT_LINK;
 
 const FAQ: Array<{ q: string; a: string }> = [
   {

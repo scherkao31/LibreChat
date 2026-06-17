@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import UpgradeDialog from '~/components/Nav/UpgradeDialog';
+import { getPlanKey } from '~/utils/plans';
 
 /** En dessous de ce ratio de credits restants, on affiche un rappel "bientot epuises". */
 const LOW_RATIO = 0.2;
@@ -37,6 +38,8 @@ function LowBalanceBanner() {
     return null;
   }
 
+  const planKey = getPlanKey(balanceQuery.data);
+  const ctaLabel = planKey === 'free' ? 'Passer à Pro' : 'Voir les forfaits';
   const percent = ratio != null ? Math.max(1, Math.round(ratio * 100)) : null;
   const bg = isEmpty ? 'bg-[#DA291C]' : 'bg-amber-500';
   const message = isEmpty
@@ -58,11 +61,16 @@ function LowBalanceBanner() {
           className={`inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-sm font-medium ${buttonText} transition-colors hover:bg-gray-100`}
         >
           <Sparkles className="h-4 w-4" aria-hidden="true" />
-          Passer à Pro
+          {ctaLabel}
         </button>
       </div>
       {showUpgrade && (
-        <UpgradeDialog open={showUpgrade} onOpenChange={setShowUpgrade} userId={user?.id} />
+        <UpgradeDialog
+          open={showUpgrade}
+          onOpenChange={setShowUpgrade}
+          userId={user?.id}
+          currentPlan={planKey}
+        />
       )}
     </>
   );

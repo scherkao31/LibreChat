@@ -1,6 +1,7 @@
 import React from 'react';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { getPlanKey, PLAN_LABEL } from '~/utils/plans';
 import AutoRefillSettings from './AutoRefillSettings';
 import TokenCreditsItem from './TokenCreditsItem';
 
@@ -54,10 +55,16 @@ function Balance() {
     );
   };
 
+  const startBalance =
+    (startupConfig?.balance as { startBalance?: number } | undefined)?.startBalance ?? 0;
+  const max = refillAmount && refillAmount > 0 ? refillAmount : startBalance || tokenCredits || 1;
+  const percent = Math.max(0, Math.min(100, Math.round((tokenCredits / max) * 100)));
+  const planLabel = PLAN_LABEL[getPlanKey(balanceData)];
+
   return (
     <div className="flex flex-col gap-4 p-4 text-sm text-text-primary">
-      {/* Token credits display */}
-      <TokenCreditsItem tokenCredits={tokenCredits} />
+      {/* Credits restants en barre de progression */}
+      <TokenCreditsItem percent={percent} planLabel={planLabel} />
 
       {/* Auto-refill display */}
       {renderAutoRefill()}
