@@ -227,6 +227,61 @@ const TERMS = layout(
   `,
 );
 
+const FAQ = layout(
+  'Aide et FAQ',
+  `
+  <h1>Aide et questions fréquentes</h1>
+  <div class="updated">Lancya, votre espace de travail IA hébergé en Suisse.</div>
+  <div class="note">
+    Cette page explique en quelques mots ce que Lancya sait faire. Une question qui n'y figure
+    pas ? Écrivez-nous à <a href="mailto:${CONTACT}">${CONTACT}</a>.
+  </div>
+
+  <h2>Qu'est-ce que Lancya ?</h2>
+  <p>Un assistant basé sur l'intelligence artificielle, pensé pour les professionnels. Vous
+  discutez avec lui comme avec un collègue, et il vous aide à rédiger, analyser, calculer et
+  produire des documents. L'IA et vos fichiers sont hébergés en Suisse.</p>
+
+  <h2>Quels modèles puis-je utiliser ?</h2>
+  <p>Deux choix dans le sélecteur en haut de la conversation :</p>
+  <ul>
+    <li><strong>Lancya</strong> : notre modèle principal (Kimi K2), rapide et capable d'utiliser des outils tout seul. Recommandé par défaut.</li>
+    <li><strong>Apertus</strong> : le modèle suisse, plus modeste, parfait pour un échange rapide.</li>
+  </ul>
+
+  <h2>Que sait-il faire concrètement ?</h2>
+  <ul>
+    <li><strong>Recherche web</strong> : il va chercher des informations à jour quand c'est utile.</li>
+    <li><strong>Documents</strong> : il crée de vrais fichiers <strong>Word, Excel, PowerPoint et PDF</strong> mis en forme, téléchargeables.</li>
+    <li><strong>Analyse et calcul</strong> : il exécute du code pour analyser des données, calculer, produire des graphiques.</li>
+    <li><strong>Lecture de vos fichiers</strong> : téléversez un document (le trombone) et posez vos questions dessus.</li>
+  </ul>
+
+  <h2>Comment téléverser un fichier ?</h2>
+  <p>Cliquez sur l'icône trombone dans la barre de message, choisissez votre fichier (PDF, image,
+  Word, Excel...). Lancya l'analyse automatiquement et vous pouvez l'interroger.</p>
+
+  <h2>Qu'est-ce que les « skills » et les « agents » ?</h2>
+  <p>Les <strong>skills</strong> sont des compétences spécialisées que l'IA mobilise toute seule
+  quand le sujet s'y prête (droit du travail suisse, fiscalité, comptabilité, rédaction...). Les
+  <strong>agents</strong> sont des assistants pré-configurés (par exemple « Copywriter » ou
+  « Assistant RH Suisse ») que vous trouvez dans la marketplace et qui vont droit au but sur une
+  tâche précise.</p>
+
+  <h2>Mes données sont-elles privées ?</h2>
+  <p>L'IA tourne en Suisse (Infomaniak) et vos fichiers y sont stockés. Vos données ne servent
+  jamais à entraîner des modèles, et chaque compte est isolé des autres. Le détail figure dans
+  notre <a href="/confidentialite">politique de confidentialité</a>.</p>
+
+  <h2>Comment fonctionnent les forfaits ?</h2>
+  <p>Un quota de crédits par mois. Vous voyez le pourcentage restant dans vos réglages. Quand il
+  baisse, un bandeau vous propose de passer à un forfait supérieur, sans engagement.</p>
+
+  <h2>Une question, un souci ?</h2>
+  <p>Écrivez-nous à <a href="mailto:${CONTACT}">${CONTACT}</a>, nous répondons.</p>
+  `,
+);
+
 const sendPage = (html) => (_req, res) => {
   res.set('Content-Type', 'text/html; charset=utf-8');
   res.set('Cache-Control', 'public, max-age=3600');
@@ -235,5 +290,6 @@ const sendPage = (html) => (_req, res) => {
 
 router.get('/confidentialite', sendPage(PRIVACY));
 router.get('/conditions', sendPage(TERMS));
+router.get('/aide', sendPage(FAQ));
 
 module.exports = router;
