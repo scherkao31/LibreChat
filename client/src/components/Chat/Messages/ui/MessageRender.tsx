@@ -118,10 +118,10 @@ const MessageRender = memo(function MessageRender({
   });
   const fontSize = useAtomValue(fontSizeAtom);
   const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
-  /* En-tete par message (avatar + nom) masque pour un rendu epure facon Claude :
-   * mes messages sont en bulle a droite, l'IA a gauche sur fond normal, sans nom ni
-   * avatar repetes. Type `boolean` (et non `false` litteral) pour garder l'avatar/nom
-   * type-checks et eviter tout warning de branche morte. Repasser a true pour restaurer. */
+  /* En-tete par message (avatar + nom) masque des DEUX cotes, facon Claude : mes messages
+   * sont en bulle a droite, l'IA a gauche sur fond normal, sans nom ni avatar repetes.
+   * Type `boolean` (pas `false` litteral) pour garder l'avatar/nom type-checks et eviter
+   * tout warning de branche morte. Repasser a true pour restaurer les en-tetes. */
   const showMessageHeader: boolean = false;
 
   const handleRegenerateMessage = useCallback(() => regenerateMessage(), [regenerateMessage]);
