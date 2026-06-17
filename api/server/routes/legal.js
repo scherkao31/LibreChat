@@ -48,7 +48,7 @@ const layout = (title, body) => `<!DOCTYPE html>
   <div class="wrap">
     <header class="brand">
       <span class="name">Lancya</span>
-      <span class="tag">Espace de travail IA souverain suisse</span>
+      <span class="tag">Espace de travail IA, hébergé en Suisse</span>
     </header>
     ${body}
     <footer>
