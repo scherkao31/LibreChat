@@ -837,6 +837,8 @@ export function fileToArtifact(
         | 'textFormat'
         | 'updatedAt'
         | 'createdAt'
+        | 'source'
+        | 'user'
       >
   >,
   options?: FileToArtifactOptions,
@@ -876,6 +878,22 @@ export function fileToArtifact(
     type === TOOL_ARTIFACT_TYPES.CODE
       ? languageForFilename(attachment.filename, attachment.type)
       : undefined;
+  /* Pour les buckets « office » (DOCX / tableur / présentation), le
+   * panneau affiche du HTML d'aperçu généré côté serveur, mais le bouton
+   * de téléchargement doit récupérer le VRAI fichier d'origine. On
+   * embarque donc la référence du fichier (mêmes champs que ceux passés
+   * à `useAttachmentLink` par la « puce ») sur l'artefact pour que
+   * `DownloadArtifact` puisse réutiliser le chemin authentifié existant.
+   * Les autres buckets (code/markdown/mermaid) gardent le téléchargement
+   * blob de leur `content`. */
+  const officeFileRef = OFFICE_HTML_BUCKETS.has(type)
+    ? {
+        fileId: attachment.file_id ?? undefined,
+        filepath: attachment.filepath ?? undefined,
+        fileSource: (attachment.source as string | undefined) ?? undefined,
+        fileUser: attachment.user ?? undefined,
+      }
+    : {};
   return {
     id: toolArtifactKey(attachment),
     type,
@@ -889,6 +907,7 @@ export function fileToArtifact(
     language,
     messageId: attachment.messageId ?? undefined,
     lastUpdateTime: toLastUpdate(attachment),
+    ...officeFileRef,
   };
 }
 

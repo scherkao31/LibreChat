@@ -769,6 +769,19 @@ export async function excelSheetToHtml(buffer: Buffer): Promise<string> {
   if (buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4b) {
     await assertSafeZipSize(buffer, { name: 'spreadsheet' });
   }
+  /* Opt-in LibreOffice path: highest-fidelity spreadsheet preview
+   * (preserves cell styling, merged cells, column widths, charts) via
+   * the same convert-to-PDF → pdf.js wrapper `wordDocToHtml` uses for
+   * docx. Returns null when LibreOffice is disabled for `xlsx`, the
+   * `soffice` binary is missing, the conversion failed, or the output
+   * exceeds the cache cap — in any of those cases we fall through to the
+   * existing SheetJS renderer below so nothing breaks. The `.xls`/`.ods`
+   * formats route here too; LibreOffice opens them all and the
+   * extension hint only affects soffice's input-format inference. */
+  const lo = await tryLibreOfficePreview(buffer, 'xlsx', OFFICE_HTML_OUTPUT_CAP);
+  if (lo) {
+    return lo;
+  }
   const XLSX = await import('xlsx');
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheets = await renderWorkbookSheets(workbook, XLSX);
