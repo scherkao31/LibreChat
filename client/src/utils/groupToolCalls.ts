@@ -22,6 +22,22 @@ function isGroupableToolCall(part: TMessageContentParts): boolean {
   return true;
 }
 
+/**
+ * Les blocs de raisonnement ("Pensées") sont eux aussi groupables, AU MEME TITRE
+ * que les appels d'outils. Sans ca, une sequence reflexion -> outil -> reflexion ->
+ * outil n'etait jamais regroupee (les outils n'etaient pas consecutifs), d'ou
+ * l'empilement de plusieurs en-tetes "Pensées" + "Ran X". En les rendant groupables,
+ * toute la sequence "reflexion + etapes" se replie sous UN SEUL en-tete (facon Claude),
+ * tandis que la reponse finale (un part TEXT, non groupable) reste toujours visible.
+ */
+function isReasoningPart(part: TMessageContentParts): boolean {
+  return part.type === ContentTypes.THINK;
+}
+
+function isGroupablePart(part: TMessageContentParts): boolean {
+  return isGroupableToolCall(part) || isReasoningPart(part);
+}
+
 export function groupSequentialToolCalls(parts: PartWithIndex[]): GroupedPart[] {
   const result: GroupedPart[] = [];
   let currentGroup: PartWithIndex[] = [];
@@ -38,7 +54,7 @@ export function groupSequentialToolCalls(parts: PartWithIndex[]): GroupedPart[] 
   };
 
   for (const item of parts) {
-    if (isGroupableToolCall(item.part)) {
+    if (isGroupablePart(item.part)) {
       currentGroup.push(item);
     } else {
       flushGroup();

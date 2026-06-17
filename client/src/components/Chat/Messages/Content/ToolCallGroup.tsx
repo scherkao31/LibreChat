@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useRecoilValue } from 'recoil';
-import { ChevronDown, Users } from 'lucide-react';
+import { ChevronDown, Users, Lightbulb } from 'lucide-react';
 import { Tools, Constants, ContentTypes, ToolCallTypes } from 'librechat-data-provider';
 import type {
   TAttachment,
@@ -109,12 +109,26 @@ export default function ToolCallGroup({
   const count = parts.length;
 
   const toolMetadata = useMemo(() => parts.map((p) => getToolMeta(p.part)), [parts]);
-  const allCompleted = useMemo(
-    () => toolMetadata.every((m) => m?.hasOutput === true),
+  /** Le groupe peut desormais melanger des blocs de raisonnement ("Pensées") et des
+   *  appels d'outils. getToolMeta renvoie null pour le raisonnement : on ne garde que
+   *  les metas reels pour le comptage, le statut "termine" et les icones. */
+  const toolMetas = useMemo(
+    () => toolMetadata.filter((m): m is ToolMeta => m != null),
     [toolMetadata],
   );
-  const toolNames = useMemo(() => toolMetadata.map((m) => m?.name ?? ''), [toolMetadata]);
-  const iconToolNames = useMemo(() => toolMetadata.map((m) => m?.iconName ?? ''), [toolMetadata]);
+  const toolCount = toolMetas.length;
+  const hasReasoning = useMemo(
+    () => parts.some((p) => p.part.type === ContentTypes.THINK),
+    [parts],
+  );
+  /** "Tout est termine" se mesure sur les outils uniquement ; un groupe purement
+   *  reflexion (aucun outil) est considere termine pour pouvoir se replier. */
+  const allCompleted = useMemo(
+    () => (toolMetas.length === 0 ? true : toolMetas.every((m) => m.hasOutput === true)),
+    [toolMetas],
+  );
+  const toolNames = useMemo(() => toolMetas.map((m) => m.name), [toolMetas]);
+  const iconToolNames = useMemo(() => toolMetas.map((m) => m.iconName), [toolMetas]);
 
   /** Subagent tool calls get their own label verb ("Running/Ran N agents")
    *  since "Used N tools" reads oddly when the "tools" are actually child
@@ -123,7 +137,7 @@ export default function ToolCallGroup({
     () => toolNames.filter((n) => n === Constants.SUBAGENT).length,
     [toolNames],
   );
-  const allSubagents = subagentCount > 0 && subagentCount === count;
+  const allSubagents = subagentCount > 0 && subagentCount === toolCount;
   /** Past-tense label once the parent stream is no longer live OR every
    *  child has a terminal signal (output / progress === 1). Without the
    *  `!isSubmitting` branch, a cancelled or errored subagent that never
@@ -219,15 +233,26 @@ export default function ToolCallGroup({
 
   const getSubagentLabel = () =>
     subagentsDone
-      ? localize('com_ui_ran_n_agents', { 0: String(count) })
-      : localize('com_ui_running_n_agents', { 0: String(count) });
+      ? localize('com_ui_ran_n_agents', { 0: String(toolCount) })
+      : localize('com_ui_running_n_agents', { 0: String(toolCount) });
+  /** Libelle de l'en-tete unique :
+   *  - sous-agents : "Lance/Utilise N agents" ;
+   *  - aucun outil (groupe purement reflexion) : "Pensées" ;
+   *  - sinon : "Utilise N outils" (count = outils, le raisonnement est replie a l'interieur). */
   const groupLabel = allSubagents
     ? getSubagentLabel()
-    : localize('com_ui_used_n_tools', { 0: String(count) });
+    : toolCount === 0
+      ? localize('com_ui_thoughts')
+      : localize('com_ui_used_n_tools', { 0: String(toolCount) });
 
   const hasActiveToolCall = useMemo(
-    () => isSubmitting && toolMetadata.some((m) => m && !m.hasOutput),
-    [toolMetadata, isSubmitting],
+    () =>
+      isSubmitting &&
+      (toolMetadata.some((m) => m && !m.hasOutput) ||
+        // Groupe purement reflexion en cours de stream : on garde ouvert pour voir
+        // la pensee s'ecrire en direct, il se repliera tout seul une fois termine.
+        (isLast && toolCount === 0 && hasReasoning)),
+    [toolMetadata, isSubmitting, isLast, toolCount, hasReasoning],
   );
 
   useEffect(() => {
@@ -259,6 +284,17 @@ export default function ToolCallGroup({
             aria-hidden="true"
           >
             <Users size={14} />
+          </div>
+        ) : toolCount === 0 ? (
+          /** Groupe purement reflexion : une petite ampoule, pas d'icones d'outils. */
+          <div
+            className={cn(
+              'flex h-5 w-5 shrink-0 items-center justify-center text-text-secondary',
+              !allCompleted && isSubmitting && 'animate-pulse text-primary',
+            )}
+            aria-hidden="true"
+          >
+            <Lightbulb size={14} />
           </div>
         ) : (
           <StackedToolIcons
