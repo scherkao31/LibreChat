@@ -7,8 +7,8 @@ import { BlinkAnimation } from './BlinkAnimation';
 import { Banner } from '../Banners';
 import Footer from './Footer';
 
-const PAYMENT_LINK_PRO = 'https://buy.stripe.com/test_3cI8wPdLdb3I4TBbwbcs800';
-const PAYMENT_LINK_PREMIUM = 'https://buy.stripe.com/test_aFafZh7mP7RwgCjfMrcs801';
+const PAYMENT_LINK_PRO = 'https://buy.stripe.com/cNifZh9wZ3Mw2J70Xq1gs01';
+const PAYMENT_LINK_PREMIUM = 'https://buy.stripe.com/4gM6oHfVncj297vgWo1gs00';
 
 const FAQ: Array<{ q: string; a: string }> = [
   {
