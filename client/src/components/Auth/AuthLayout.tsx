@@ -21,7 +21,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Où sont hébergées mes données ?',
-    a: "L'IA et vos fichiers sont en Suisse (Infomaniak). L'application et la base de données qui stocke vos conversations sont hébergées en Europe (Railway). La migration de cet hébergement applicatif vers la Suisse est prévue dans les prochaines semaines. Le détail, traitement par traitement, figure dans notre politique de confidentialité.",
+    a: "L'IA et vos fichiers sont en Suisse (Infomaniak). L'application et la base de données qui stocke vos conversations sont hébergées en Europe (Railway, région EU West). La migration de cet hébergement applicatif vers la Suisse est prévue dans les prochaines semaines. Le détail, traitement par traitement, figure dans notre politique de confidentialité.",
   },
   {
     q: 'Pour quels métiers Lancya est-il conçu ?',

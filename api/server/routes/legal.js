@@ -117,8 +117,8 @@ const PRIVACY = layout(
     <tr><td>Traitement par l'IA (vos messages et documents soumis a l'IA)</td><td>Infomaniak</td><td class="loc flag-ch">Suisse</td></tr>
     <tr><td>Stockage de vos fichiers</td><td>Infomaniak Object Storage</td><td class="loc flag-ch">Suisse</td></tr>
     <tr><td>E-mails du service (verification, mot de passe)</td><td>Infomaniak Mail</td><td class="loc flag-ch">Suisse</td></tr>
-    <tr><td>Application, comptes et conversations (base de donnees)</td><td>Railway</td><td class="loc">Europe</td></tr>
-    <tr><td>Recherche web (lorsque vous l'activez)</td><td>SearXNG auto-heberge (sur Railway)</td><td class="loc">Europe</td></tr>
+    <tr><td>Application, comptes et conversations (base de donnees)</td><td>Railway</td><td class="loc">Europe (EU West)</td></tr>
+    <tr><td>Recherche web (lorsque vous l'activez)</td><td>SearXNG auto-heberge (sur Railway)</td><td class="loc">Europe (EU West)</td></tr>
     <tr><td>Paiement et facturation</td><td>Stripe</td><td class="loc">UE / international</td></tr>
   </table>
   <p style="font-size:14px;color:#6b7280;">Note : la recherche web, quand vous l'utilisez, va chercher
