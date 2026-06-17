@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '~/utils';
+import { cleanConversationTitle } from './utils';
 
 interface ConvoLinkProps {
   isActiveConvo: boolean;
@@ -20,13 +21,14 @@ const ConvoLink: React.FC<ConvoLinkProps> = ({
   localize,
   children,
 }) => {
+  const displayTitle = cleanConversationTitle(title);
   return (
     <div
       className={cn(
         'flex min-w-0 grow items-center gap-2 overflow-hidden rounded-lg px-2',
         isActiveConvo || isPopoverActive ? 'bg-surface-active-alt' : '',
       )}
-      title={title ?? undefined}
+      title={displayTitle || undefined}
       aria-current={isActiveConvo ? 'page' : undefined}
       style={{ width: '100%' }}
     >
@@ -42,9 +44,9 @@ const ConvoLink: React.FC<ConvoLinkProps> = ({
           e.stopPropagation();
           onRename();
         }}
-        aria-label={title || localize('com_ui_untitled')}
+        aria-label={displayTitle || localize('com_ui_untitled')}
       >
-        {title || localize('com_ui_untitled')}
+        {displayTitle || localize('com_ui_untitled')}
       </div>
       <div
         className={cn(
