@@ -6,7 +6,9 @@ const router = express.Router();
  * Pages legales Lancya servies cote serveur (hors SPA) pour que
  * https://www.lancya.ch/confidentialite et /conditions repondent par de vraies
  * pages HTML autonomes (referencees dans l'ecran de consentement Google OAuth
- * et le pied de page de l'app). Contenu v1, a enrichir + faire relire par un juriste.
+ * et le pied de page de l'app). Positionnement HONNETE : on n'affirme que le vrai
+ * (inference et stockage en Suisse), et on detaille chaque traitement et sa
+ * localisation. A faire relire par un juriste avant usage definitif.
  */
 
 const UPDATED = '17 juin 2026';
@@ -38,6 +40,11 @@ const layout = (title, body) => `<!DOCTYPE html>
   ul { padding-left:22px; }
   li { margin:6px 0; }
   a { color:var(--accent); }
+  table.map { width:100%; border-collapse:collapse; margin:14px 0 4px; font-size:14.5px; }
+  table.map th, table.map td { border:1px solid var(--line); padding:10px 12px; text-align:left; vertical-align:top; }
+  table.map th { background:#eef2f7; color:var(--accent); font-weight:600; }
+  table.map td.loc { white-space:nowrap; font-weight:600; }
+  .flag-ch { color:#1F3A5F; }
   footer { margin-top:48px; padding-top:20px; border-top:1px solid var(--line);
     color:var(--muted); font-size:13.5px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
   footer a { color:var(--muted); text-decoration:none; }
@@ -69,24 +76,57 @@ const PRIVACY = layout(
   <h1>Politique de confidentialite</h1>
   <div class="updated">Derniere mise a jour : ${UPDATED}</div>
   <div class="note">
-    Version preliminaire. Ce document decrit nos pratiques actuelles et sera complete puis
-    revu par un conseil juridique. Pour toute question : <a href="mailto:${CONTACT}">${CONTACT}</a>.
+    Version preliminaire, ecrite pour etre honnete et precise. Elle sera completee puis revue
+    par un conseil juridique. Pour toute question : <a href="mailto:${CONTACT}">${CONTACT}</a>.
   </div>
 
   <h2>1. Qui sommes-nous</h2>
-  <p>Lancya est un espace de travail base sur l'intelligence artificielle, concu pour les
-  professionnels suisses et europeens qui traitent des informations sensibles. L'inference IA et
-  le stockage des fichiers sont assures en Suisse par Infomaniak.</p>
+  <p>Lancya est un espace de travail base sur l'intelligence artificielle, destine aux professionnels
+  qui traitent des informations sensibles. Notre choix de fond : faire tourner l'intelligence
+  artificielle et stocker vos fichiers en Suisse. Cette page explique, point par point, quelles
+  donnees nous traitons, ou, et par qui.</p>
 
-  <h2>2. Donnees que nous traitons</h2>
+  <h2>2. Ce que nous pouvons dire honnetement</h2>
+  <p>Nous pensons qu'un service de confiance ne survend pas. Voici donc la realite, sans formule
+  marketing :</p>
   <ul>
-    <li><strong>Donnees de compte</strong> : adresse e-mail, nom, mot de passe (sous forme chiffree), preferences.</li>
+    <li><strong>Le traitement par l'IA a lieu en Suisse</strong> (chez Infomaniak). Vos echanges avec
+    l'IA ne sont pas envoyes a des modeles americains.</li>
+    <li><strong>Vos fichiers sont stockes en Suisse</strong> (Infomaniak Object Storage).</li>
+    <li><strong>Vos contenus ne servent pas a entrainer des modeles.</strong></li>
+    <li>En revanche, nous ne pretendons pas que vos donnees seraient invisibles, meme pour nous.
+    Comme tout hebergeur, nous avons techniquement acces a l'infrastructure pour faire fonctionner
+    le service. Un chiffrement de bout en bout total rendrait l'IA, la recherche et l'analyse de
+    documents impossibles. Nous limitons cet acces au strict necessaire et ne consultons pas vos
+    contenus en dehors de ce qui est indispensable au fonctionnement ou exige par la loi.</li>
+  </ul>
+
+  <h2>3. Donnees que nous traitons</h2>
+  <ul>
+    <li><strong>Donnees de compte</strong> : adresse e-mail, nom, mot de passe (stocke sous forme chiffree), preferences.</li>
     <li><strong>Contenu</strong> : vos conversations, fichiers televerses et documents generes.</li>
-    <li><strong>Donnees techniques</strong> : journaux de connexion, adresse IP, type d'appareil, a des fins de securite et de bon fonctionnement.</li>
+    <li><strong>Donnees techniques</strong> : journaux de connexion, adresse IP, type d'appareil, a des fins de securite.</li>
     <li><strong>Donnees de facturation</strong> : gerees par notre prestataire de paiement (nous ne stockons pas vos donnees de carte).</li>
   </ul>
 
-  <h2>3. Finalites</h2>
+  <h2>4. Ou se trouve chaque donnee (carte claire)</h2>
+  <p>Le coeur de Lancya (l'IA et vos fichiers) est en Suisse. Certaines briques techniques s'appuient
+  sur des prestataires europeens ou internationaux. Voici le detail, sans rien cacher :</p>
+  <table class="map">
+    <tr><th>Traitement</th><th>Prestataire</th><th>Lieu</th></tr>
+    <tr><td>Traitement par l'IA (vos messages et documents soumis a l'IA)</td><td>Infomaniak</td><td class="loc flag-ch">Suisse</td></tr>
+    <tr><td>Stockage de vos fichiers</td><td>Infomaniak Object Storage</td><td class="loc flag-ch">Suisse</td></tr>
+    <tr><td>E-mails du service (verification, mot de passe)</td><td>Infomaniak Mail</td><td class="loc flag-ch">Suisse</td></tr>
+    <tr><td>Application, comptes et conversations (base de donnees)</td><td>Railway</td><td class="loc">Europe</td></tr>
+    <tr><td>Recherche web (lorsque vous l'activez)</td><td>SearXNG auto-heberge (sur Railway)</td><td class="loc">Europe</td></tr>
+    <tr><td>Paiement et facturation</td><td>Stripe</td><td class="loc">UE / international</td></tr>
+  </table>
+  <p style="font-size:14px;color:#6b7280;">Note : la recherche web, quand vous l'utilisez, va chercher
+  des pages publiques sur Internet ; les requetes correspondantes quittent donc nos serveurs pour
+  atteindre les sites consultes. Stripe ne recoit que des donnees de facturation, jamais vos contenus
+  metier.</p>
+
+  <h2>5. Finalites</h2>
   <ul>
     <li>Fournir le service (repondre a vos demandes, traiter vos documents).</li>
     <li>Securiser et maintenir la plateforme.</li>
@@ -94,42 +134,25 @@ const PRIVACY = layout(
     <li>Respecter nos obligations legales.</li>
   </ul>
 
-  <h2>4. Hebergement et localisation</h2>
-  <p>L'inference IA et le stockage de vos fichiers sont realises en <strong>Suisse</strong> (Infomaniak).
-  Certaines briques techniques (hebergement applicatif, paiement) s'appuient sur des prestataires
-  europeens ou internationaux, listes ci-dessous et encadres par contrat. Nous ne pretendons pas
-  un chiffrement de bout en bout qui rendrait le contenu invisible meme pour nous : faire fonctionner
-  l'IA suppose que le contenu soit lisible au moment du traitement, en Suisse.</p>
+  <h2>6. Securite</h2>
+  <p>Chiffrement en transit (TLS) entre vous, l'application et nos prestataires ; isolation des donnees
+  par compte (un utilisateur n'accede pas aux donnees d'un autre) ; acces interne limite au strict
+  necessaire.</p>
 
-  <h2>5. Pas d'entrainement sur vos donnees</h2>
-  <p>Vos contenus ne sont pas utilises pour entrainer des modeles d'intelligence artificielle.</p>
+  <h2>7. Conservation et suppression</h2>
+  <p>Vous pouvez supprimer vos conversations et vos fichiers a tout moment. A la fermeture de votre
+  compte, vos donnees sont supprimees, sous reserve des obligations legales de conservation.</p>
 
-  <h2>6. Sous-traitants</h2>
-  <ul>
-    <li><strong>Infomaniak</strong> (Suisse) : inference IA et stockage des fichiers.</li>
-    <li><strong>Railway</strong> : hebergement de l'application.</li>
-    <li><strong>Stripe</strong> : traitement des paiements.</li>
-  </ul>
-  <p>La liste detaillee et a jour des sous-traitants sera publiee et tenue a disposition.</p>
+  <h2>8. Vos droits</h2>
+  <p>Conformement a la nLPD (loi suisse sur la protection des donnees) et, le cas echeant, au RGPD
+  (Union europeenne), vous disposez d'un droit d'acces, de rectification, de suppression et de
+  portabilite. Pour les exercer : <a href="mailto:${CONTACT}">${CONTACT}</a>.</p>
 
-  <h2>7. Securite</h2>
-  <p>Chiffrement en transit (TLS), isolation des donnees par compte (un utilisateur n'accede pas aux
-  donnees d'un autre), acces interne limite au strict necessaire pour faire fonctionner le service.</p>
-
-  <h2>8. Conservation et suppression</h2>
-  <p>Vous pouvez supprimer vos conversations et vos fichiers. A la fermeture de votre compte, vos
-  donnees sont supprimees, sous reserve des obligations legales de conservation.</p>
-
-  <h2>9. Vos droits</h2>
-  <p>Conformement a la nLPD (Suisse) et, le cas echeant, au RGPD (Union europeenne), vous disposez
-  d'un droit d'acces, de rectification, de suppression et de portabilite de vos donnees. Pour les
-  exercer : <a href="mailto:${CONTACT}">${CONTACT}</a>.</p>
-
-  <h2>10. Cookies</h2>
+  <h2>9. Cookies</h2>
   <p>Nous utilisons les cookies strictement necessaires au fonctionnement du service (session,
-  authentification). Aucun traceur publicitaire tiers n'est utilise.</p>
+  authentification). Aucun traceur publicitaire tiers.</p>
 
-  <h2>11. Contact</h2>
+  <h2>10. Contact</h2>
   <p>Pour toute question relative a vos donnees : <a href="mailto:${CONTACT}">${CONTACT}</a>.</p>
   `,
 );
@@ -150,7 +173,9 @@ const TERMS = layout(
 
   <h2>2. Description du service</h2>
   <p>Lancya est un espace de travail assiste par intelligence artificielle (conversation, analyse et
-  generation de documents) heberge en Suisse.</p>
+  generation de documents). Le traitement par l'IA et le stockage des fichiers ont lieu en Suisse ;
+  l'hebergement de l'application et le paiement reposent sur des prestataires europeens ou
+  internationaux, detailles dans notre <a href="/confidentialite">politique de confidentialite</a>.</p>
 
   <h2>3. Compte</h2>
   <p>Vous etes responsable de l'exactitude des informations fournies, de la confidentialite de vos

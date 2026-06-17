@@ -12,16 +12,16 @@ const PAYMENT_LINK_PREMIUM = 'https://buy.stripe.com/test_aFafZh7mP7RwgCjfMrcs80
 
 const FAQ: Array<{ q: string; a: string }> = [
   {
-    q: 'Mes données sont-elles vraiment privées ?',
-    a: "Oui. L'inférence tourne en Suisse chez Infomaniak, vos données ne sont jamais utilisées pour entraîner des modèles, et chaque compte est strictement isolé des autres.",
+    q: 'Mes données sont-elles privées ?',
+    a: "L'IA tourne en Suisse chez Infomaniak et vos fichiers y sont stockés. Vos données ne servent jamais à entraîner des modèles, et chaque compte est isolé des autres. Comme tout hébergeur, nous gardons un accès technique limité au strict nécessaire et ne consultons pas vos contenus en dehors de ça. Le détail figure dans notre politique de confidentialité.",
   },
   {
     q: 'En quoi est-ce différent de ChatGPT ou Claude ?',
-    a: "Le même type d'outil, mais souverain. Lancya est pensé pour les professionnels qui ne peuvent pas confier leurs données clients à des services américains.",
+    a: "Le même type d'outil, mais avec l'IA et vos fichiers hébergés en Suisse. Lancya est pensé pour les professionnels qui ne peuvent pas confier leurs données clients à des services américains.",
   },
   {
     q: 'Où sont hébergées mes données ?',
-    a: "L'intelligence pense déjà en Suisse. Vos données sont hébergées en Europe, avec un objectif clair : tout en Suisse pour la version pro.",
+    a: "L'IA et vos fichiers sont en Suisse (Infomaniak). L'application et la base de données qui stocke vos conversations sont hébergées en Europe (Railway). Le détail, traitement par traitement, figure dans notre politique de confidentialité.",
   },
   {
     q: 'Pour quels métiers Lancya est-il conçu ?',
@@ -29,7 +29,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "Quels modèles d'intelligence utilise Lancya ?",
-    a: "Les meilleurs modèles open source hébergés en Suisse, ainsi que le modèle suisse Apertus en option pour une souveraineté maximale.",
+    a: "Les meilleurs modèles open source hébergés en Suisse, ainsi que le modèle suisse Apertus en option.",
   },
   {
     q: 'Puis-je annuler à tout moment ?',
@@ -168,13 +168,13 @@ function AuthLayout({
               en <span className="text-[#DA291C]">Suisse</span>.
             </h1>
             <p className="mt-6 max-w-md text-lg text-gray-600 dark:text-gray-300">
-              {"La puissance d'un ChatGPT ou d'un Claude, mais souverain. Vos données restent en Suisse et ne nourrissent personne."}
+              {"La puissance d'un ChatGPT ou d'un Claude, mais avec l'IA et vos fichiers hébergés en Suisse, et vos données qui ne nourrissent aucun modèle."}
             </p>
             <ul className="mt-8 space-y-3 text-sm text-gray-700 dark:text-gray-300">
               {[
-                'Inférence hébergée en Suisse, chez Infomaniak.',
-                'Confidentialité conçue pour les métiers réglementés.',
-                'Recherche web, documents et outils, sans quitter la Suisse.',
+                'IA hébergée en Suisse, chez Infomaniak.',
+                'Vos fichiers stockés en Suisse.',
+                'Vos données ne nourrissent aucun modèle.',
               ].map((line) => (
                 <li key={line} className="flex items-start gap-3">
                   <span className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-[#DA291C]" />

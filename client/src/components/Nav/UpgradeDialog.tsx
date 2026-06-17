@@ -75,7 +75,7 @@ function UpgradeDialog({
           Passez a la vitesse superieure
         </h2>
         <p className="mb-6 text-center text-sm text-text-secondary">
-          Plus de credits, votre IA souveraine sans interruption.
+          Plus de credits, votre IA hébergée en Suisse sans interruption.
         </p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
