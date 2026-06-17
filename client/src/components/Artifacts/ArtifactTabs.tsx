@@ -5,9 +5,11 @@ import type { editor } from 'monaco-editor';
 import type { Artifact } from '~/common';
 import { useCodeState } from '~/Providers/EditorContext';
 import useArtifactProps from '~/hooks/Artifacts/useArtifactProps';
+import { TOOL_ARTIFACT_TYPES } from '~/utils/artifacts';
 import { ArtifactCodeEditor } from './ArtifactCodeEditor';
 import { useGetStartupConfig } from '~/data-provider';
 import { ArtifactPreview } from './ArtifactPreview';
+import SpreadsheetArtifact from './SpreadsheetArtifact';
 
 export default function ArtifactTabs({
   artifact,
@@ -32,6 +34,13 @@ export default function ArtifactTabs({
 
   const { files, fileKey, template, sharedProps } = useArtifactProps({ artifact });
 
+  /* Spreadsheet artifacts get an interactive read-only grid (parsed from
+   * the ORIGINAL .xlsx via ExcelJS) instead of the static HTML iframe.
+   * The grid component fetches/parses the original file and falls back to
+   * the HTML preview (`ArtifactPreview`) on any failure. docx/pptx are
+   * unaffected and keep the Sandpack iframe path. */
+  const isSpreadsheet = artifact.type === TOOL_ARTIFACT_TYPES.SPREADSHEET;
+
   return (
     <div className="flex h-full w-full flex-col">
       <Tabs.Content
@@ -48,15 +57,27 @@ export default function ArtifactTabs({
         className="h-full w-full flex-grow overflow-hidden"
         tabIndex={-1}
       >
-        <ArtifactPreview
-          files={files}
-          fileKey={fileKey}
-          template={template}
-          previewRef={previewRef}
-          sharedProps={sharedProps}
-          currentCode={currentCode}
-          startupConfig={startupConfig}
-        />
+        {isSpreadsheet ? (
+          <SpreadsheetArtifact
+            artifact={artifact}
+            files={files}
+            fileKey={fileKey}
+            template={template}
+            previewRef={previewRef}
+            sharedProps={sharedProps}
+            startupConfig={startupConfig}
+          />
+        ) : (
+          <ArtifactPreview
+            files={files}
+            fileKey={fileKey}
+            template={template}
+            previewRef={previewRef}
+            sharedProps={sharedProps}
+            currentCode={currentCode}
+            startupConfig={startupConfig}
+          />
+        )}
       </Tabs.Content>
     </div>
   );
