@@ -19,7 +19,8 @@ async function balanceController(req, res) {
     delete result.refillIntervalValue;
     delete result.refillIntervalUnit;
     delete result.lastRefill;
-    delete result.refillAmount;
+    // On GARDE refillAmount : il porte l'allocation du plan (gratuit/pro/premium),
+    // necessaire au badge de forfait et a la barre de credits cote client.
   }
 
   res.status(200).json(result);
