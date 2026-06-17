@@ -194,7 +194,7 @@
   "com_auth_password_min_length": "Le mot de passe doit comporter au moins 8 caractères",
   "com_auth_password_not_match": "Les mots de passe ne correspondent pas",
   "com_auth_password_required": "Le mot de passe est obligatoire",
-  "com_auth_registration_success_generic": "Veuillez vérifier vos mails pour la vérification de celui-ci.",
+  "com_auth_registration_success_generic": "Votre compte a été créé. Consultez votre boîte mail (pensez au dossier spam) pour confirmer votre adresse et activer votre compte.",
   "com_auth_registration_success_insecure": "Inscription réussie.",
   "com_auth_reset_password": "Réinitialiser votre mot de passe",
   "com_auth_reset_password_if_email_exists": "Si un compte avec ce courriel existe, un courriel avec des instructions de réinitialisation de mot de passe a été envoyé. Assurez-vous de vérifier votre dossier de courrier indésirable.",

@@ -50,6 +50,11 @@ const Registration: React.FC = () => {
     },
     onSuccess: () => {
       setIsSubmitting(false);
+      // Verification email active : pas de redirection, on laisse un message permanent
+      // (le compte n'est pas encore actif, rediriger ne ferait que renvoyer au login).
+      if (startupConfig?.emailEnabled) {
+        return;
+      }
       setCountdown(3);
       const timer = setInterval(() => {
         setCountdown((prevCountdown) => {
@@ -131,16 +136,23 @@ const Registration: React.FC = () => {
           {localize('com_auth_error_create')} {errorMessage}
         </ErrorMessage>
       )}
-      {registerUser.isSuccess && countdown > 0 && (
+      {registerUser.isSuccess && startupConfig?.emailEnabled && (
+        <div
+          className="rounded-md border border-green-500 bg-green-500/10 px-3 py-3 text-sm text-gray-600 dark:text-gray-200"
+          role="alert"
+        >
+          {localize('com_auth_registration_success_generic')}{' '}
+          <a href="/login" className="font-medium text-green-600 underline dark:text-green-400">
+            {localize('com_auth_back_to_login')}
+          </a>
+        </div>
+      )}
+      {registerUser.isSuccess && !startupConfig?.emailEnabled && countdown > 0 && (
         <div
           className="rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200"
           role="alert"
         >
-          {localize(
-            startupConfig?.emailEnabled
-              ? 'com_auth_registration_success_generic'
-              : 'com_auth_registration_success_insecure',
-          ) +
+          {localize('com_auth_registration_success_insecure') +
             ' ' +
             localize('com_auth_email_verification_redirecting', { 0: countdown.toString() })}
         </div>
