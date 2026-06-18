@@ -211,6 +211,25 @@ const handleAbortError = async (res, req, error, data) => {
     ? error.message
     : 'An error occurred while processing your request. Please contact the Admin.';
 
+  // Panne / indisponibilite du fournisseur d'IA (Infomaniak) : on detecte les
+  // erreurs de connexion en amont et les reponses 5xx, et on affiche un message
+  // clair en francais plutot qu'une erreur technique brute. L'utilisateur n'y est
+  // pour rien : on lui dit que c'est temporaire et de reessayer.
+  const outageSignature = `${error?.message ?? ''} ${error?.cause?.message ?? ''} ${
+    error?.code ?? ''
+  } ${error?.status ?? ''} ${error?.response?.status ?? ''}`.toLowerCase();
+  const isUpstreamOutage =
+    /econnrefused|econnreset|etimedout|enotfound|eai_again|socket hang up|fetch failed|network error|connection error|connect timeout|timed out|und_err/.test(
+      outageSignature,
+    ) ||
+    /\b(500|502|503|504)\b|service unavailable|bad gateway|gateway timeout|internal server error|overloaded|temporarily unavailable|upstream/.test(
+      outageSignature,
+    );
+  if (isUpstreamOutage) {
+    errorText =
+      "Le service d'intelligence artificielle rencontre un incident temporaire chez notre fournisseur suisse. Ce n'est pas une erreur de votre part : merci de reessayer dans quelques minutes.";
+  }
+
   if (error?.type === ErrorTypes.INVALID_REQUEST) {
     errorText = `{"type":"${ErrorTypes.INVALID_REQUEST}"}`;
   }
