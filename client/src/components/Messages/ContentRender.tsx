@@ -152,6 +152,11 @@ const ContentRender = memo(function ContentRender({
 
   const { hasParallelContent } = useContentMetadata(msg);
 
+  /* En-tete IA (icone du modele + nom) masque dans la conversation, facon Claude.
+   * L'icone du modele ne sert plus que dans le selecteur en haut. Repasser a true
+   * pour reafficher le logo + le nom au-dessus des reponses de l'IA. */
+  const showAiHeader = false;
+
   if (!msg) {
     return null;
   }
@@ -184,9 +189,12 @@ const ContentRender = memo(function ContentRender({
         baseClasses.chat,
         conditionalClasses.focus,
         'message-render',
+        // Mes messages sont alignes a droite (style bulle, comme Claude).
+        msg.isCreatedByUser === true && 'justify-end',
       )}
     >
-      {!hasParallelContent && (
+      {/* Avatar IA masque (showAiHeader=false) : plus d'icone dans la conversation. */}
+      {showAiHeader && !hasParallelContent && (
         <div className="relative flex flex-shrink-0 flex-col items-center">
           <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full">
             <MessageIcon iconData={iconData} assistant={assistant} agent={agent} />
@@ -197,11 +205,16 @@ const ContentRender = memo(function ContentRender({
       <div
         className={cn(
           'relative flex flex-col',
-          hasParallelContent ? 'w-full' : 'w-11/12',
-          msg.isCreatedByUser ? 'user-turn' : 'agent-turn',
+          msg.isCreatedByUser === true
+            ? 'max-w-[85%]'
+            : hasParallelContent
+              ? 'w-full'
+              : 'w-11/12',
+          msg.isCreatedByUser ? 'user-turn items-end' : 'agent-turn',
         )}
       >
-        {!hasParallelContent && (
+        {/* Nom IA masque (showAiHeader=false), comme l'avatar. */}
+        {showAiHeader && !hasParallelContent && (
           <h2 className={cn('select-none font-semibold', fontSize)}>
             <span className="sr-only">{getHeaderPrefixForScreenReader(msg, localize)}</span>
             {messageLabel}
@@ -209,7 +222,13 @@ const ContentRender = memo(function ContentRender({
         )}
 
         <div className="flex flex-col gap-1">
-          <div className="flex min-h-[20px] max-w-full flex-grow flex-col gap-0">
+          <div
+            className={cn(
+              'flex min-h-[20px] max-w-full flex-grow flex-col gap-0',
+              // Bulle coloree pour mes messages (cote utilisateur).
+              msg.isCreatedByUser === true && 'rounded-3xl bg-surface-tertiary px-4 py-2.5',
+            )}
+          >
             <ContentParts
               edit={edit}
               isLast={isLast}
