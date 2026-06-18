@@ -11,7 +11,7 @@ const router = express.Router();
  * localisation. A faire relire par un juriste avant usage definitif.
  */
 
-const UPDATED = '17 juin 2026';
+const UPDATED = '18 juin 2026';
 const CONTACT = 'contact@lancya.ch';
 
 const layout = (title, body) => `<!DOCTYPE html>
@@ -111,6 +111,8 @@ const PRIVACY = layout(
     <li><strong>Le traitement par l'IA a lieu en Suisse</strong> (chez Infomaniak). Vos echanges avec
     l'IA ne sont pas envoyes a des modeles americains.</li>
     <li><strong>Vos fichiers sont stockes en Suisse</strong> (Infomaniak Object Storage).</li>
+    <li><strong>L'execution de code a lieu en Suisse</strong> (analyses, calculs, generation de
+    documents), dans un environnement isole et sans acces a Internet.</li>
     <li><strong>Vos contenus ne servent pas a entrainer des modeles.</strong></li>
     <li>En revanche, nous ne pretendons pas que vos donnees seraient invisibles, meme pour nous.
     Comme tout hebergeur, nous avons techniquement acces a l'infrastructure pour faire fonctionner
@@ -133,6 +135,7 @@ const PRIVACY = layout(
   <table class="map">
     <tr><th>Traitement</th><th>Prestataire</th><th>Lieu</th></tr>
     <tr><td>Traitement par l'IA (vos messages et documents soumis a l'IA)</td><td>Infomaniak</td><td class="loc flag-ch">Suisse</td></tr>
+    <tr><td>Execution de code (analyse de donnees, calculs, generation de fichiers)</td><td>Serveur Infomaniak (isole, sans acces a Internet)</td><td class="loc flag-ch">Suisse</td></tr>
     <tr><td>Stockage de vos fichiers</td><td>Infomaniak Object Storage</td><td class="loc flag-ch">Suisse</td></tr>
     <tr><td>E-mails du service (verification, mot de passe)</td><td>Infomaniak Mail</td><td class="loc flag-ch">Suisse</td></tr>
     <tr><td>Application, comptes et conversations (base de donnees)</td><td>Railway</td><td class="loc">Europe (EU West)</td></tr>
@@ -193,10 +196,14 @@ const TERMS = layout(
   en utilisant le service, vous les acceptez.</p>
 
   <h2>2. Description du service</h2>
-  <p>Lancya est un espace de travail assiste par intelligence artificielle (conversation, analyse et
-  generation de documents). Le traitement par l'IA et le stockage des fichiers ont lieu en Suisse ;
-  l'hebergement de l'application et le paiement reposent sur des prestataires europeens ou
-  internationaux, detailles dans notre <a href="/confidentialite">politique de confidentialite</a>.</p>
+  <p>Lancya est un espace de travail assiste par intelligence artificielle : conversation, lecture et
+  analyse de fichiers, recherche web, execution de code (calculs, analyses), et generation de
+  documents (Word, Excel, PowerPoint, PDF). Le traitement par l'IA, l'execution de code et le stockage
+  des fichiers ont lieu en Suisse ; l'hebergement de l'application et le paiement reposent sur des
+  prestataires europeens ou internationaux, detailles dans notre
+  <a href="/confidentialite">politique de confidentialite</a>.</p>
+  <p>Lorsque Lancya redige un email, un bouton vous permet de l'ouvrir dans votre propre messagerie,
+  pre-rempli. Lancya n'envoie aucun email en votre nom : c'est vous qui gardez la main sur l'envoi.</p>
 
   <h2>3. Compte</h2>
   <p>Vous etes responsable de l'exactitude des informations fournies, de la confidentialite de vos
@@ -222,7 +229,10 @@ const TERMS = layout(
 
   <h2>7. Disponibilite</h2>
   <p>Nous nous efforcons d'assurer la continuite du service mais ne garantissons pas une disponibilite
-  sans interruption. Des operations de maintenance ou des incidents peuvent survenir.</p>
+  sans interruption. Des operations de maintenance ou des incidents peuvent survenir. Le service
+  s'appuie sur des prestataires tiers, notamment pour l'intelligence artificielle ; une interruption
+  chez l'un d'eux peut affecter temporairement la disponibilite de Lancya, independamment de notre
+  volonte.</p>
 
   <h2>8. Limitation de responsabilite</h2>
   <p>Dans les limites permises par la loi, Lancya ne peut etre tenue responsable des dommages
