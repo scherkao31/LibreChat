@@ -78,6 +78,11 @@ const ChatForm = memo(function ChatForm({
   const [backupBadges, setBackupBadges] = useState<Pick<BadgeItem, 'id'>[]>([]);
 
   const SpeechToText = useRecoilValue(store.speechToText);
+  /* Micro (dictee vocale) masque pour l'instant : sans STT configure, le defaut
+   * passe par l'API Web Speech du navigateur (audio envoye chez Google/Apple, hors
+   * Suisse), ce qui contredit notre positionnement. A reactiver avec un STT suisse
+   * (ex. Infomaniak) en repassant ce flag a true. */
+  const showMicButton = false;
   const TextToSpeech = useRecoilValue(store.textToSpeech);
   const chatDirection = useRecoilValue(store.chatDirection);
   const automaticPlayback = useRecoilValue(store.automaticPlayback);
@@ -379,7 +384,7 @@ const ChatForm = memo(function ChatForm({
                 }
               />
               <div className="mx-auto flex" />
-              {SpeechToText && (
+              {showMicButton && SpeechToText && (
                 <AudioRecorder
                   methods={methods}
                   ask={submitMessage}
