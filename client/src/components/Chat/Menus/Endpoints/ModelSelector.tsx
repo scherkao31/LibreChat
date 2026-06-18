@@ -70,7 +70,9 @@ function ModelSelectorContent() {
           className="my-1 flex h-9 w-full max-w-[70vw] items-center justify-center gap-2 rounded-xl border border-border-light bg-presentation px-3 py-2 text-sm text-text-primary hover:bg-surface-active-alt"
           aria-label={localize('com_ui_select_model')}
         >
-          {selectedIcon && React.isValidElement(selectedIcon) && (
+          {/* Icone du modele masquee dans le selecteur (choix produit Lancya).
+           *  `false &&` neutralise le rendu tout en gardant selectedIcon reference. */}
+          {false && selectedIcon && React.isValidElement(selectedIcon) && (
             <div className="flex flex-shrink-0 items-center justify-center overflow-hidden">
               {selectedIcon}
             </div>
