@@ -77,6 +77,11 @@ export default function Message(props: TMessageProps) {
 
   const { hasParallelContent } = useContentMetadata(message);
 
+  /* En-tete IA (icone du modele + nom) masque dans la conversation, facon Claude :
+   * l'icone du modele ne sert plus que dans le selecteur en haut. Repasser a true
+   * pour reafficher le logo + le nom au-dessus des reponses de l'IA. */
+  const showAiHeader = false;
+
   if (!message) {
     return null;
   }
@@ -116,8 +121,8 @@ export default function Message(props: TMessageProps) {
               isCreatedByUser === true && 'justify-end',
             )}
           >
-            {/* Avatar : uniquement cote IA. Cote utilisateur, la bulle + l'alignement suffisent. */}
-            {!hasParallelContent && isCreatedByUser !== true && (
+            {/* Avatar IA masque (showAiHeader=false) : plus d'icone dans la conversation. */}
+            {showAiHeader && !hasParallelContent && isCreatedByUser !== true && (
               <div className="relative flex flex-shrink-0 flex-col items-center">
                 <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full pt-0.5">
                   <MessageIcon iconData={iconData} assistant={assistant} agent={agent} />
@@ -135,8 +140,8 @@ export default function Message(props: TMessageProps) {
                 isCreatedByUser ? 'user-turn items-end' : 'agent-turn',
               )}
             >
-              {/* Nom : uniquement cote IA (on retire le nom repete cote utilisateur). */}
-              {!hasParallelContent && isCreatedByUser !== true && (
+              {/* Nom IA masque (showAiHeader=false), comme l'avatar. */}
+              {showAiHeader && !hasParallelContent && isCreatedByUser !== true && (
                 <h2 className={cn('select-none font-semibold text-text-primary', fontSize)}>
                   <span className="sr-only">
                     {getHeaderPrefixForScreenReader(message, localize)}
