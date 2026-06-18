@@ -49,6 +49,24 @@ const layout = (title, body) => `<!DOCTYPE html>
     color:var(--muted); font-size:13.5px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
   footer a { color:var(--muted); text-decoration:none; }
   footer a:hover { text-decoration:underline; }
+  /* FAQ : accordeon repliable (questions cliquables) */
+  .faq-cat { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted);
+    font-weight:700; margin:36px 0 12px; }
+  .faq-cat:first-of-type { margin-top:24px; }
+  details.faq { background:#fff; border:1px solid var(--line); border-radius:12px; margin:10px 0;
+    transition:border-color .15s, box-shadow .15s; }
+  details.faq[open] { border-color:#d5dde7; box-shadow:0 1px 3px rgba(31,58,95,.06); }
+  details.faq summary { cursor:pointer; list-style:none; padding:16px 18px; font-weight:600;
+    font-size:16px; color:var(--ink); display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  details.faq summary::-webkit-details-marker { display:none; }
+  details.faq summary::after { content:"+"; color:var(--accent); font-size:22px; font-weight:400;
+    line-height:1; flex:0 0 auto; }
+  details.faq[open] summary::after { content:"\\2212"; }
+  details.faq summary:hover { color:var(--accent); }
+  details.faq .answer { padding:0 18px 18px; color:#374151; font-size:15px; line-height:1.65; }
+  details.faq .answer > :first-child { margin-top:0; }
+  details.faq .answer > :last-child { margin-bottom:0; }
+  details.faq .answer ul { margin:8px 0; }
 </style>
 </head>
 <body>
@@ -227,58 +245,172 @@ const TERMS = layout(
   `,
 );
 
+const faq = (q, a, open = false) =>
+  `<details class="faq"${open ? ' open' : ''}><summary>${q}</summary><div class="answer">${a}</div></details>`;
+const faqCat = (label) => `<div class="faq-cat">${label}</div>`;
+
 const FAQ = layout(
   'Aide et FAQ',
   `
   <h1>Aide et questions fréquentes</h1>
   <div class="updated">Lancya, votre espace de travail IA hébergé en Suisse.</div>
   <div class="note">
-    Cette page explique en quelques mots ce que Lancya sait faire. Une question qui n'y figure
-    pas ? Écrivez-nous à <a href="mailto:${CONTACT}">${CONTACT}</a>.
+    Cliquez sur une question pour voir la réponse. Une question qui n'y figure pas ?
+    Écrivez-nous à <a href="mailto:${CONTACT}">${CONTACT}</a>.
   </div>
 
-  <h2>Qu'est-ce que Lancya ?</h2>
-  <p>Un assistant basé sur l'intelligence artificielle, pensé pour les professionnels. Vous
-  discutez avec lui comme avec un collègue, et il vous aide à rédiger, analyser, calculer et
-  produire des documents. L'IA et vos fichiers sont hébergés en Suisse.</p>
+  ${faqCat('Découvrir Lancya')}
+  ${faq(
+    "Qu'est-ce que Lancya ?",
+    `<p>Un assistant basé sur l'intelligence artificielle, pensé pour les professionnels. Vous
+    discutez avec lui comme avec un collègue, et il vous aide à rédiger, analyser, calculer et
+    produire des documents. Le traitement par l'IA et le stockage de vos fichiers ont lieu en Suisse.</p>`,
+    true,
+  )}
+  ${faq(
+    'Quels modèles puis-je utiliser ?',
+    `<p>Deux choix dans le sélecteur en haut de la conversation :</p>
+    <ul>
+      <li><strong>Lancya</strong> : notre modèle principal (Kimi K2), rapide et capable d'utiliser des outils tout seul. Recommandé par défaut.</li>
+      <li><strong>Apertus</strong> : le modèle suisse, plus modeste, parfait pour un échange rapide.</li>
+    </ul>`,
+  )}
+  ${faq(
+    'Dans quelle langue puis-je écrire ?',
+    `<p>Écrivez comme vous parlez, en français le plus souvent. Lancya répond dans votre langue.
+    Il comprend aussi l'allemand, l'italien et l'anglais.</p>`,
+  )}
+  ${faq(
+    'Comment bien formuler ma demande ?',
+    `<p>Allez à l'essentiel et donnez le contexte utile : à qui s'adresse le texte, le ton voulu,
+    la longueur, les éléments à inclure. Vous pouvez toujours répondre « plus court », « plus
+    formel » ou « ajoute tel point » pour affiner. Inutile de tout réussir du premier coup.</p>`,
+  )}
 
-  <h2>Quels modèles puis-je utiliser ?</h2>
-  <p>Deux choix dans le sélecteur en haut de la conversation :</p>
-  <ul>
-    <li><strong>Lancya</strong> : notre modèle principal (Kimi K2), rapide et capable d'utiliser des outils tout seul. Recommandé par défaut.</li>
-    <li><strong>Apertus</strong> : le modèle suisse, plus modeste, parfait pour un échange rapide.</li>
-  </ul>
+  ${faqCat('Ce que Lancya sait faire')}
+  ${faq(
+    'Que sait-il faire concrètement ?',
+    `<ul>
+      <li><strong>Rédaction</strong> : emails, courriers, comptes rendus, offres, publications.</li>
+      <li><strong>Documents</strong> : de vrais fichiers Word, Excel, PowerPoint et PDF, mis en forme et téléchargeables.</li>
+      <li><strong>Analyse et calcul</strong> : il exécute du code pour traiter des données, calculer et produire des graphiques.</li>
+      <li><strong>Recherche web</strong> : il va chercher des informations à jour quand c'est utile.</li>
+      <li><strong>Lecture de vos fichiers</strong> : téléversez un document et posez vos questions dessus.</li>
+    </ul>`,
+  )}
+  ${faq(
+    'Peut-il créer des documents Word, Excel, PowerPoint ou PDF ?',
+    `<p>Oui. Demandez par exemple un tableau de suivi, une présentation ou un courrier : Lancya
+    produit un vrai fichier que vous pouvez prévisualiser puis télécharger. Les tableaux Excel
+    s'affichent directement dans une grille interactive.</p>`,
+  )}
+  ${faq(
+    'Peut-il chercher des informations sur le web ?',
+    `<p>Oui, quand c'est pertinent il lance une recherche pour vous donner une réponse à jour. Les
+    requêtes correspondantes quittent nos serveurs pour atteindre les sites consultés ; vos
+    fichiers, eux, ne sont jamais envoyés au web.</p>`,
+  )}
+  ${faq(
+    'Peut-il lire et analyser mes fichiers ?',
+    `<p>Oui. Téléversez un PDF, une image, un Word ou un Excel via le trombone, puis interrogez-le :
+    résumé, extraction d'informations, analyse de chiffres, vérification, etc.</p>`,
+  )}
+  ${faq(
+    'Que sont les réponses suggérées (boutons cliquables) ?',
+    `<p>Quand quelques réponses évidentes feraient gagner du temps, Lancya peut les proposer sous
+    forme de boutons. Cliquez pour répondre en un geste, ou écrivez votre propre réponse comme
+    d'habitude. Dans certains cas vous pouvez même en cocher plusieurs à la fois.</p>`,
+  )}
+  ${faq(
+    'Comment envoyer un email rédigé par Lancya ?',
+    `<p>Lorsqu'il rédige un email, un bouton <strong>Ouvrir dans ma messagerie</strong> apparaît sous
+    le texte : il ouvre votre messagerie habituelle avec l'objet et le contenu déjà remplis, prêt à
+    envoyer. Vous pouvez aussi simplement copier le texte.</p>`,
+  )}
 
-  <h2>Que sait-il faire concrètement ?</h2>
-  <ul>
-    <li><strong>Recherche web</strong> : il va chercher des informations à jour quand c'est utile.</li>
-    <li><strong>Documents</strong> : il crée de vrais fichiers <strong>Word, Excel, PowerPoint et PDF</strong> mis en forme, téléchargeables.</li>
-    <li><strong>Analyse et calcul</strong> : il exécute du code pour analyser des données, calculer, produire des graphiques.</li>
-    <li><strong>Lecture de vos fichiers</strong> : téléversez un document (le trombone) et posez vos questions dessus.</li>
-  </ul>
+  ${faqCat('Fichiers et documents')}
+  ${faq(
+    'Comment téléverser un fichier ?',
+    `<p>Cliquez sur l'icône trombone dans la barre de message, choisissez votre fichier, puis posez
+    votre question. Lancya l'analyse automatiquement.</p>`,
+  )}
+  ${faq(
+    'Quels formats sont acceptés ?',
+    `<p>Les formats courants : PDF, images (photo, capture d'écran), Word, Excel, PowerPoint, texte
+    et CSV. Pour les images et PDF scannés, Lancya peut aussi lire le texte qu'ils contiennent.</p>`,
+  )}
+  ${faq(
+    'Où retrouver les documents générés ?',
+    `<p>Chaque document apparaît directement dans la conversation, avec un aperçu et un bouton de
+    téléchargement. Il reste accessible tant que vous gardez la conversation.</p>`,
+  )}
 
-  <h2>Comment téléverser un fichier ?</h2>
-  <p>Cliquez sur l'icône trombone dans la barre de message, choisissez votre fichier (PDF, image,
-  Word, Excel...). Lancya l'analyse automatiquement et vous pouvez l'interroger.</p>
+  ${faqCat('Skills et agents')}
+  ${faq(
+    'Que sont les « skills » et les « agents » ?',
+    `<p>Les <strong>skills</strong> sont des compétences spécialisées que l'IA mobilise toute seule
+    quand le sujet s'y prête (droit du travail suisse, fiscalité, comptabilité, rédaction...). Les
+    <strong>agents</strong> sont des assistants pré-configurés (par exemple « Copywriter » ou
+    « Assistant RH Suisse ») qui vont droit au but sur une tâche précise.</p>`,
+  )}
+  ${faq(
+    'Comment utiliser un agent ?',
+    `<p>Ouvrez la liste des agents, choisissez celui qui correspond à votre besoin, et discutez avec
+    lui comme avec l'assistant principal. Il est déjà réglé pour son domaine.</p>`,
+  )}
 
-  <h2>Qu'est-ce que les « skills » et les « agents » ?</h2>
-  <p>Les <strong>skills</strong> sont des compétences spécialisées que l'IA mobilise toute seule
-  quand le sujet s'y prête (droit du travail suisse, fiscalité, comptabilité, rédaction...). Les
-  <strong>agents</strong> sont des assistants pré-configurés (par exemple « Copywriter » ou
-  « Assistant RH Suisse ») que vous trouvez dans la marketplace et qui vont droit au but sur une
-  tâche précise.</p>
+  ${faqCat('Confidentialité et sécurité')}
+  ${faq(
+    'Mes données sont-elles privées ?',
+    `<p>Le traitement par l'IA a lieu en Suisse (Infomaniak) et vos fichiers y sont stockés. Chaque
+    compte est isolé des autres, et nous limitons l'accès interne au strict nécessaire. Le détail
+    figure dans notre <a href="/confidentialite">politique de confidentialité</a>.</p>`,
+  )}
+  ${faq(
+    "Mes données servent-elles à entraîner l'IA ?",
+    `<p>Non. Vos conversations et vos fichiers ne servent jamais à entraîner des modèles.</p>`,
+  )}
+  ${faq(
+    'Où sont hébergées mes données ?',
+    `<p>L'IA et vos fichiers sont en Suisse. L'application et la base de données (comptes,
+    conversations) sont aujourd'hui en Europe, avec une migration vers la Suisse prévue. Le paiement
+    passe par Stripe. La carte complète, traitement par traitement, est dans notre
+    <a href="/confidentialite">politique de confidentialité</a>.</p>`,
+  )}
+  ${faq(
+    'Qui peut accéder à mes conversations ?',
+    `<p>Vous. Comme tout hébergeur, nous avons techniquement accès à l'infrastructure pour faire
+    fonctionner le service, mais nous ne consultons pas vos contenus en dehors de ce qui est
+    indispensable au fonctionnement ou exigé par la loi.</p>`,
+  )}
 
-  <h2>Mes données sont-elles privées ?</h2>
-  <p>L'IA tourne en Suisse (Infomaniak) et vos fichiers y sont stockés. Vos données ne servent
-  jamais à entraîner des modèles, et chaque compte est isolé des autres. Le détail figure dans
-  notre <a href="/confidentialite">politique de confidentialité</a>.</p>
+  ${faqCat('Compte, forfaits et facturation')}
+  ${faq(
+    'Comment fonctionnent les forfaits ?',
+    `<p>Vous disposez d'un quota de crédits par mois. La part restante s'affiche dans vos réglages.
+    Quand elle baisse, un bandeau vous propose de passer à un forfait supérieur.</p>`,
+  )}
+  ${faq(
+    'Comment changer de forfait ?',
+    `<p>Depuis vos réglages ou le bandeau de crédits, choisissez le forfait voulu. Le paiement est
+    immédiat et vos crédits sont crédités aussitôt, sans engagement de durée.</p>`,
+  )}
+  ${faq(
+    'Comment se passe le paiement ?',
+    `<p>Le paiement est traité par Stripe. Nous ne stockons pas vos données de carte. Stripe ne
+    reçoit que les informations de facturation, jamais vos contenus.</p>`,
+  )}
+  ${faq(
+    'Puis-je supprimer mes données ou mon compte ?',
+    `<p>Oui. Vous pouvez supprimer vos conversations et vos fichiers à tout moment. À la fermeture du
+    compte, vos données sont supprimées, sous réserve des obligations légales de conservation.</p>`,
+  )}
 
-  <h2>Comment fonctionnent les forfaits ?</h2>
-  <p>Un quota de crédits par mois. Vous voyez le pourcentage restant dans vos réglages. Quand il
-  baisse, un bandeau vous propose de passer à un forfait supérieur, sans engagement.</p>
-
-  <h2>Une question, un souci ?</h2>
-  <p>Écrivez-nous à <a href="mailto:${CONTACT}">${CONTACT}</a>, nous répondons.</p>
+  ${faqCat("Besoin d'aide ?")}
+  ${faq(
+    'Une question, un souci ?',
+    `<p>Écrivez-nous à <a href="mailto:${CONTACT}">${CONTACT}</a>, nous répondons.</p>`,
+  )}
   `,
 );
 
