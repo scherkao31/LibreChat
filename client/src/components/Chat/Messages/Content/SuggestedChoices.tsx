@@ -150,7 +150,7 @@ const SuggestedChoices = memo(function SuggestedChoices({ raw }: { raw: string }
   };
 
   const rowBase =
-    'flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy';
+    'flex w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left text-sm shadow-sm transition-all duration-150 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy';
 
   return (
     <div

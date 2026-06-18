@@ -146,7 +146,7 @@ const SuggestedVariants = memo(function SuggestedVariants({ raw }: { raw: string
       )}
 
       {/* Corps de la variante active */}
-      <div className="mt-2 rounded-2xl border border-border-medium bg-surface-secondary">
+      <div className="mt-2 rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
         <div className="whitespace-pre-wrap px-4 py-3 text-sm text-text-primary">
           {activeVariant.body}
         </div>

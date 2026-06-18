@@ -11,7 +11,19 @@ module.exports = {
   darkMode: ['class'],
   theme: {
     fontFamily: {
-      sans: ['Switzer', 'Inter', 'sans-serif'],
+      // Pile systeme propre et chaleureuse (San Francisco sur Mac, Segoe sur
+      // Windows, Helvetica Neue en repli). Aucun telechargement, rendu net.
+      // Remplace Switzer, juge trop "robotique". Inter reste en repli si present.
+      sans: [
+        '-apple-system',
+        'BlinkMacSystemFont',
+        '"Segoe UI"',
+        '"Helvetica Neue"',
+        'Helvetica',
+        'Inter',
+        'Arial',
+        'sans-serif',
+      ],
       mono: ['Roboto Mono', 'monospace'],
     },
     // fontFamily: {
