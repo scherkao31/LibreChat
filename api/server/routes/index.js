@@ -36,11 +36,13 @@ const user = require('./user');
 const mcp = require('./mcp');
 const rum = require('./rum');
 const legal = require('./legal');
+const deck = require('./deck');
 
 module.exports = {
   rum,
   mcp,
   legal,
+  deck,
   auth,
   adminAuth,
   adminConfig,

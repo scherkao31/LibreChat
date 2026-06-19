@@ -1,5 +1,7 @@
 import { memo, useMemo, useRef, useState, useCallback } from 'react';
-import { Maximize2, Download, Pencil, Check } from 'lucide-react';
+import axios from 'axios';
+import { Maximize2, Download, FileDown, Pencil, Check } from 'lucide-react';
+import { useToastContext } from '@librechat/client';
 import { dataService } from 'librechat-data-provider';
 import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
@@ -145,6 +147,20 @@ function buildSrcDoc(html: string): string {
   return out;
 }
 
+/** Mise en page d'impression (pour l'export PDF via Gotenberg) : une slide = une
+ *  page 1280x720, marges nulles, fond imprime, sans notre barre de navigation. */
+const PRINT_STYLE = `<style>
+  @page { size: 1280px 720px; margin: 0; }
+  html, body { margin: 0; padding: 0; }
+  .slide { position: static !important; width: 1280px !important; height: 720px !important; margin: 0 !important; transform: none !important; opacity: 1 !important; box-sizing: border-box; overflow: hidden; page-break-after: always; break-after: page; }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+</style>`;
+function buildPrintHtml(cleanHtml: string): string {
+  return cleanHtml.includes('</head>')
+    ? cleanHtml.replace('</head>', `${PRINT_STYLE}</head>`)
+    : `${PRINT_STYLE}${cleanHtml}`;
+}
+
 const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const ready = looksComplete(raw);
@@ -153,7 +169,9 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
   const palette = useMemo(() => parseRootColors(raw), [raw]);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const { messageId, conversationId, partIndex } = useMessageContext();
+  const { showToast } = useToastContext();
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs lus par onLoad (evite les closures perimees lors d'un rechargement iframe).
@@ -274,6 +292,40 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
     }
   }, [srcDoc]);
 
+  // Export PDF haute fidelite : on envoie le HTML PROPRE (avec les modifs de
+  // l'utilisateur) en mise en page d'impression au serveur, qui le convertit via
+  // Gotenberg (Chromium). Telechargement direct du PDF.
+  const downloadPdf = useCallback(async () => {
+    const clean = cleanEditedHtml();
+    if (!clean) {
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      const resp = await axios.post(
+        '/api/deck/pdf',
+        { html: buildPrintHtml(clean) },
+        { responseType: 'arraybuffer' },
+      );
+      const blob = new Blob([resp.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'presentation.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      showToast?.({
+        message: "L'export PDF n'est pas disponible pour le moment.",
+        status: 'error',
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [cleanEditedHtml, showToast]);
+
   if (!ready) {
     return (
       <div className="not-prose my-3 flex aspect-video w-full items-center justify-center rounded-2xl border border-border-medium bg-surface-secondary text-sm text-text-secondary shadow-sm">
@@ -339,6 +391,20 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
           </button>
           <button
             type="button"
+            onClick={downloadPdf}
+            disabled={pdfLoading}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
+              'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+              pdfLoading && 'cursor-not-allowed opacity-50',
+            )}
+          >
+            <FileDown size={14} />
+            {pdfLoading ? 'PDF...' : 'PDF'}
+          </button>
+          <button
+            type="button"
             onClick={download}
             className={cn(
               'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
@@ -347,7 +413,7 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
             )}
           >
             <Download size={14} />
-            Telecharger
+            HTML
           </button>
           <button
             type="button"
