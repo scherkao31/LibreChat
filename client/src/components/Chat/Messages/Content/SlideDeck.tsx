@@ -1,5 +1,7 @@
 import { memo, useMemo, useRef, useState, useCallback } from 'react';
 import { Maximize2, Download, Pencil, Check } from 'lucide-react';
+import { dataService } from 'librechat-data-provider';
+import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
 
 /**
@@ -23,7 +25,7 @@ import { cn } from '~/utils';
  * vivant de l'iframe au telechargement).
  */
 
-const INJECT_STYLE = `<style>
+const INJECT_STYLE = `<style id="ld-style">
   html, body { margin: 0; height: 100%; }
   .slide { position: absolute !important; inset: 0 !important; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
   .slide.ld-active { opacity: 1; pointer-events: auto; }
@@ -35,7 +37,7 @@ const INJECT_STYLE = `<style>
   .slide.ld-active[contenteditable="true"] { cursor: text; }
 </style>`;
 
-const INJECT_SCRIPT = `<script>
+const INJECT_SCRIPT = `<script id="ld-script">
 (function(){
   var slides = [].slice.call(document.querySelectorAll('.slide'));
   if (!slides.length) { return; }
@@ -139,6 +141,8 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
   const palette = useMemo(() => parseRootColors(raw), [raw]);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
+  const { messageId, conversationId, partIndex } = useMessageContext();
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs lus par onLoad (evite les closures perimees lors d'un rechargement iframe).
   const overridesRef = useRef(overrides);
@@ -147,6 +151,47 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
   editingRef.current = editing;
 
   const doc = () => iframeRef.current?.contentDocument ?? null;
+
+  // Version PROPRE du deck edite : on retire nos injections (style/script/nav,
+  // classes ld-active, attributs contenteditable) pour ne garder que le HTML du
+  // deck avec les modifs de l'utilisateur (couleurs en :root + texte).
+  const cleanEditedHtml = useCallback((): string | null => {
+    const d = doc();
+    if (!d) {
+      return null;
+    }
+    const clone = d.documentElement.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('#ld-style, #ld-script, .ld-nav').forEach((el) => el.remove());
+    clone.querySelectorAll('.slide').forEach((s) => {
+      s.classList.remove('ld-active');
+      (s as HTMLElement).removeAttribute('contenteditable');
+    });
+    return `<!DOCTYPE html>\n${clone.outerHTML}`;
+  }, []);
+
+  // Persiste le deck edite DANS le message (donc l'historique) : au prochain prompt,
+  // le modele repart de cette version. La route PUT valide l'index et le type de
+  // partie, donc au pire elle renvoie une erreur, sans corrompre le message.
+  const persist = useCallback(() => {
+    if (!messageId || !conversationId || partIndex == null) {
+      return;
+    }
+    const html = cleanEditedHtml();
+    if (!html) {
+      return;
+    }
+    const text = '```lancya_deck\n' + html + '\n```';
+    void dataService
+      .updateMessageContent({ conversationId, messageId, index: partIndex, text })
+      .catch(() => undefined);
+  }, [messageId, conversationId, partIndex, cleanEditedHtml]);
+
+  const schedulePersist = useCallback(() => {
+    if (persistTimer.current) {
+      clearTimeout(persistTimer.current);
+    }
+    persistTimer.current = setTimeout(persist, 800);
+  }, [persist]);
 
   const applyEditing = useCallback((on: boolean) => {
     const d = doc();
@@ -168,20 +213,30 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
       root.style.setProperty(`--${name}`, value);
     });
     applyEditing(editingRef.current);
-  }, [applyEditing]);
+    // Capture les editions de texte (frappe) pour les persister, debounce.
+    d.addEventListener('input', schedulePersist);
+  }, [applyEditing, schedulePersist]);
 
-  const setColor = useCallback((name: string, value: string) => {
-    setOverrides((prev) => ({ ...prev, [name]: value }));
-    doc()?.documentElement.style.setProperty(`--${name}`, value);
-  }, []);
+  const setColor = useCallback(
+    (name: string, value: string) => {
+      setOverrides((prev) => ({ ...prev, [name]: value }));
+      doc()?.documentElement.style.setProperty(`--${name}`, value);
+      schedulePersist();
+    },
+    [schedulePersist],
+  );
 
   const toggleEditing = useCallback(() => {
     setEditing((prev) => {
       const next = !prev;
       applyEditing(next);
+      if (!next) {
+        // En quittant le mode edition, on persiste l'etat final.
+        persist();
+      }
       return next;
     });
-  }, [applyEditing]);
+  }, [applyEditing, persist]);
 
   const goFullscreen = useCallback(() => {
     iframeRef.current?.requestFullscreen?.();
