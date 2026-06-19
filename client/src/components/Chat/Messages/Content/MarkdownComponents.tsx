@@ -6,6 +6,7 @@ import Mermaid, { MermaidErrorBoundary } from '~/components/Messages/Content/Mer
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import SuggestedChoices from '~/components/Chat/Messages/Content/SuggestedChoices';
 import SuggestedVariants from '~/components/Chat/Messages/Content/SuggestedVariants';
+import SlideDeck from '~/components/Chat/Messages/Content/SlideDeck';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
 import { useCodeBlockContext } from '~/Providers';
@@ -44,11 +45,12 @@ export const code: React.ElementType = memo(function MarkdownCode({
   // Widgets Lancya (underscore : la regex \w ne capte pas le tiret).
   const isChoices = lang === 'lancya_choices';
   const isVariants = lang === 'lancya_variants';
+  const isDeck = lang === 'lancya_deck';
   const isSingleLine = isSingleLineCode(children);
 
   const { getNextIndex, resetCounter } = useCodeBlockContext();
   const blockIndex = useRef(
-    getNextIndex(isMath || isMermaid || isChoices || isVariants || isSingleLine),
+    getNextIndex(isMath || isMermaid || isChoices || isVariants || isDeck || isSingleLine),
   ).current;
 
   useEffect(() => {
@@ -63,6 +65,9 @@ export const code: React.ElementType = memo(function MarkdownCode({
   } else if (isVariants) {
     const content = typeof children === 'string' ? children : String(children);
     return <SuggestedVariants raw={content} />;
+  } else if (isDeck) {
+    const content = typeof children === 'string' ? children : String(children);
+    return <SlideDeck raw={content} />;
   } else if (isMermaid) {
     const content = typeof children === 'string' ? children : String(children);
     return (
