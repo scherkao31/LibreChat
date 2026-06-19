@@ -281,7 +281,7 @@ const FAQ = layout(
     'Quels modèles puis-je utiliser ?',
     `<p>Deux choix dans le sélecteur en haut de la conversation :</p>
     <ul>
-      <li><strong>Lancya</strong> : notre modèle principal (Kimi K2), rapide et capable d'utiliser des outils tout seul. Recommandé par défaut.</li>
+      <li><strong>Lancya</strong> : notre modèle principal (Kimi K2.6), rapide et capable d'utiliser des outils tout seul. Recommandé par défaut.</li>
       <li><strong>Apertus</strong> : le modèle suisse, plus modeste, parfait pour un échange rapide.</li>
     </ul>`,
   )}
