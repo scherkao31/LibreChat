@@ -26,8 +26,12 @@ import { cn } from '~/utils';
  */
 
 const INJECT_STYLE = `<style id="ld-style">
-  html, body { margin: 0; height: 100%; }
-  .slide { position: absolute !important; inset: 0 !important; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  /* Canevas fixe 16:9 (1280x720) mis a l'echelle pour rentrer dans le cadre du
+     widget : le contenu n'est plus rogne quand le widget est petit, juste reduit
+     proportionnellement (texte plus petit en ligne, tout visible). En plein ecran,
+     l'echelle augmente et remplit l'ecran. */
+  .slide { position: absolute !important; top: 50% !important; left: 50% !important; width: 1280px !important; height: 720px !important; margin: -360px 0 0 -640px !important; transform: scale(var(--ld-scale, 1)); transform-origin: center center; overflow: hidden; box-sizing: border-box; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
   .slide.ld-active { opacity: 1; pointer-events: auto; }
   .ld-nav { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 999px; background: rgba(127,127,127,.12); backdrop-filter: blur(6px); z-index: 99999; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
   .ld-btn { border: 0; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; color: var(--text, #1a1a1a); padding: 2px 9px; border-radius: 50%; }
@@ -41,6 +45,14 @@ const INJECT_SCRIPT = `<script id="ld-script">
 (function(){
   var slides = [].slice.call(document.querySelectorAll('.slide'));
   if (!slides.length) { return; }
+  // Met le canevas 1280x720 a l'echelle pour rentrer dans le cadre courant
+  // (recalcule au resize, donc aussi a l'entree/sortie du plein ecran).
+  function fit(){
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    document.documentElement.style.setProperty('--ld-scale', String(s));
+  }
+  window.addEventListener('resize', fit);
+  fit();
   var i = 0, counter = null;
   function show(n){
     i = Math.max(0, Math.min(slides.length - 1, n));
