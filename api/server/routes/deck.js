@@ -30,17 +30,26 @@ router.post('/pdf', async (req, res) => {
     return res.status(400).json({ error: 'HTML manquant.' });
   }
 
+  // Taille de page parametrable (en pouces) avec validation numerique stricte.
+  // Defauts = slides paysage 16:9 (13.333 x 7.5, marges 0) pour rester compatible.
+  // Un document envoie du A4 portrait (8.27 x 11.69) avec une marge.
+  const num = (v, def) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 && n <= 100 ? String(n) : def;
+  };
+  const paperWidth = num(req.body?.paperWidth, '13.333');
+  const paperHeight = num(req.body?.paperHeight, '7.5');
+  const margin = num(req.body?.margin, '0');
+
   try {
     const form = new FormData();
     form.append('files', new Blob([html], { type: 'text/html' }), 'index.html');
-    // Page paysage 16:9 (13.333 x 7.5 pouces = 1280x720 a 96 dpi), marges nulles,
-    // fonds imprimes. Le HTML coupe une page par slide (page-break-after).
-    form.append('paperWidth', '13.333');
-    form.append('paperHeight', '7.5');
-    form.append('marginTop', '0');
-    form.append('marginBottom', '0');
-    form.append('marginLeft', '0');
-    form.append('marginRight', '0');
+    form.append('paperWidth', paperWidth);
+    form.append('paperHeight', paperHeight);
+    form.append('marginTop', margin);
+    form.append('marginBottom', margin);
+    form.append('marginLeft', margin);
+    form.append('marginRight', margin);
     form.append('printBackground', 'true');
 
     const upstream = await fetch(
