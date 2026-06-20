@@ -1,6 +1,21 @@
-import { memo, useMemo, useRef, useState, useCallback } from 'react';
+import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
-import { Maximize2, Download, FileDown, Pencil, Check } from 'lucide-react';
+import {
+  Maximize2,
+  Download,
+  FileDown,
+  Pencil,
+  Check,
+  Copy,
+  User,
+  MoreHorizontal,
+  Heart,
+  MessageCircle,
+  Send,
+  Bookmark,
+  ThumbsUp,
+  Repeat2,
+} from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { dataService } from 'librechat-data-provider';
 import { useMessageContext } from '~/Providers';
@@ -121,6 +136,19 @@ function looksComplete(raw: string): boolean {
   return t.includes('</body>') || t.includes('</html>');
 }
 
+/** Legende suggeree par le modele, via <meta name="lancya-caption" content="..."> */
+function parseCaption(raw: string): string {
+  const m = /<meta\s+name=["']lancya-caption["']\s+content=["']([^"']*)["']/i.exec(raw);
+  if (!m) {
+    return '';
+  }
+  return m[1]
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .trim();
+}
+
 function buildSrcDoc(html: string): string {
   let out = html;
   out = out.includes('</head>')
@@ -154,6 +182,10 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [platform, setPlatform] = useState<'instagram' | 'linkedin'>('instagram');
+  const [caption, setCaption] = useState('');
+  const [captionCopied, setCaptionCopied] = useState(false);
+  const seededRef = useRef(false);
   const { messageId, conversationId, partIndex } = useMessageContext();
   const { showToast } = useToastContext();
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -294,6 +326,25 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
     }
   }, [cleanEditedHtml, showToast]);
 
+  // Pre-remplit la legende une fois (quand le carrousel est complet), sans ecraser
+  // les retouches de l'utilisateur ensuite.
+  useEffect(() => {
+    if (ready && !seededRef.current) {
+      setCaption(parseCaption(raw));
+      seededRef.current = true;
+    }
+  }, [ready, raw]);
+
+  const copyCaption = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(caption);
+      setCaptionCopied(true);
+      setTimeout(() => setCaptionCopied(false), 1500);
+    } catch {
+      /* presse-papier indisponible */
+    }
+  }, [caption]);
+
   if (!ready) {
     return (
       <div className="not-prose my-3 flex aspect-[4/5] w-full max-w-xs items-center justify-center rounded-2xl border border-border-medium bg-surface-secondary text-sm text-text-secondary shadow-sm">
@@ -305,100 +356,186 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
   const colorValue = (e: PaletteEntry) => overrides[e.name] ?? e.value;
 
   return (
-    <div className="not-prose my-3 w-full font-sans">
+    <div className="not-prose my-3 flex w-full flex-col items-center font-sans">
+      {/* Toggle d'apercu : Instagram / LinkedIn (cosmetique). */}
+      <div className="mb-2 flex items-center gap-0.5 rounded-full border border-border-light bg-surface-tertiary p-0.5 text-xs">
+        {(['instagram', 'linkedin'] as const).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPlatform(p)}
+            className={cn(
+              'rounded-full px-3 py-1 transition-colors',
+              platform === p
+                ? 'bg-surface-primary font-medium text-text-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary',
+            )}
+          >
+            {p === 'instagram' ? 'Instagram' : 'LinkedIn'}
+          </button>
+        ))}
+      </div>
+
+      {/* Carte facon post : header + carrousel + actions + legende. */}
       <div
         className={cn(
-          'overflow-hidden rounded-2xl border bg-surface-secondary shadow-sm',
+          'w-full max-w-[400px] overflow-hidden rounded-2xl border bg-surface-primary shadow-sm',
           editing ? 'border-border-heavy ring-2 ring-border-heavy' : 'border-border-medium',
         )}
       >
-        {/* Format vertical 4:5, largeur limitee pour rester credible en carrousel. */}
+        <div className="flex items-center gap-2.5 px-3 py-2.5">
+          <div
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center bg-surface-tertiary text-text-secondary',
+              platform === 'instagram' ? 'rounded-full' : 'rounded-md',
+            )}
+          >
+            <User size={18} />
+          </div>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="truncate text-sm font-semibold text-text-primary">
+              {platform === 'instagram' ? 'votre_compte' : 'Votre nom'}
+            </div>
+            <div className="truncate text-xs text-text-secondary">
+              {platform === 'instagram' ? 'Votre localisation' : 'Votre poste · maintenant'}
+            </div>
+          </div>
+          <MoreHorizontal size={18} className="shrink-0 text-text-secondary" />
+        </div>
+
         <iframe
           ref={iframeRef}
           title="Carrousel"
           srcDoc={srcDoc}
           onLoad={handleLoad}
           sandbox="allow-scripts allow-same-origin allow-popups"
-          className="mx-auto block aspect-[4/5] w-full max-w-[420px] border-0 bg-white"
+          className="block aspect-[4/5] w-full border-0 bg-white"
         />
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border-light px-3 py-2">
-          {palette.length > 0 && (
-            <div className="mr-auto flex items-center gap-2">
-              {palette.map((entry) => (
-                <label
-                  key={entry.name}
-                  className="flex cursor-pointer items-center gap-1.5 text-xs text-text-secondary"
-                  title={entry.label}
-                >
-                  <input
-                    type="color"
-                    value={colorValue(entry)}
-                    onChange={(ev) => setColor(entry.name, ev.target.value)}
-                    className="h-5 w-5 cursor-pointer rounded border border-border-medium bg-transparent p-0"
-                    aria-label={`Couleur ${entry.label}`}
-                  />
-                  <span className="hidden sm:inline">{entry.label}</span>
-                </label>
-              ))}
-            </div>
-          )}
 
+        <div className="flex items-center gap-4 px-3 py-2.5 text-text-secondary">
+          {platform === 'instagram' ? (
+            <>
+              <Heart size={20} />
+              <MessageCircle size={20} />
+              <Send size={20} />
+              <Bookmark size={20} className="ml-auto" />
+            </>
+          ) : (
+            <>
+              <span className="flex items-center gap-1 text-xs">
+                <ThumbsUp size={15} /> J'aime
+              </span>
+              <span className="flex items-center gap-1 text-xs">
+                <MessageCircle size={15} /> Commenter
+              </span>
+              <span className="flex items-center gap-1 text-xs">
+                <Repeat2 size={15} /> Republier
+              </span>
+              <span className="ml-auto flex items-center gap-1 text-xs">
+                <Send size={15} /> Envoyer
+              </span>
+            </>
+          )}
+        </div>
+
+        <div className="px-3 pb-3">
+          <textarea
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            rows={3}
+            placeholder="Ecrivez votre legende..."
+            className="w-full resize-none rounded-lg border border-border-light bg-surface-secondary px-2.5 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none focus:ring-0"
+          />
           <button
             type="button"
-            onClick={toggleEditing}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs',
-              editing
-                ? 'bg-surface-tertiary text-text-primary'
-                : 'text-text-secondary hover:bg-surface-tertiary hover:text-text-primary',
-              'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
-            )}
+            onClick={copyCaption}
+            className="mt-1.5 flex items-center gap-1.5 text-xs text-text-secondary transition-colors hover:text-text-primary"
           >
-            {editing ? <Check size={14} /> : <Pencil size={14} />}
-            {editing ? 'Terminer' : 'Editer le texte'}
-          </button>
-          <button
-            type="button"
-            onClick={downloadPdf}
-            disabled={pdfLoading}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
-              'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
-              pdfLoading && 'cursor-not-allowed opacity-50',
-            )}
-          >
-            <FileDown size={14} />
-            {pdfLoading ? 'PDF...' : 'PDF'}
-          </button>
-          <button
-            type="button"
-            onClick={download}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
-              'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
-            )}
-          >
-            <Download size={14} />
-            HTML
-          </button>
-          <button
-            type="button"
-            onClick={goFullscreen}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg bg-text-primary px-3 py-1.5 text-xs font-medium text-surface-primary',
-              'transition-opacity duration-150 hover:opacity-90',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
-            )}
-          >
-            <Maximize2 size={14} />
-            Plein ecran
+            {captionCopied ? <Check size={13} /> : <Copy size={13} />}
+            {captionCopied ? 'Legende copiee' : 'Copier la legende'}
           </button>
         </div>
       </div>
-      <span className="mt-1 block px-1 text-xs text-text-secondary">
-        Naviguez entre les cartes, editez le texte, changez les couleurs. Exportez en PDF pour publier sur LinkedIn.
+
+      {/* Outils : couleurs + edition + export. */}
+      <div className="mt-2 flex w-full max-w-[400px] flex-wrap items-center gap-x-3 gap-y-2">
+        {palette.length > 0 && (
+          <div className="mr-auto flex items-center gap-2">
+            {palette.map((entry) => (
+              <label
+                key={entry.name}
+                className="flex cursor-pointer items-center gap-1.5 text-xs text-text-secondary"
+                title={entry.label}
+              >
+                <input
+                  type="color"
+                  value={colorValue(entry)}
+                  onChange={(ev) => setColor(entry.name, ev.target.value)}
+                  className="h-5 w-5 cursor-pointer rounded border border-border-medium bg-transparent p-0"
+                  aria-label={`Couleur ${entry.label}`}
+                />
+                <span className="hidden sm:inline">{entry.label}</span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={toggleEditing}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs',
+            editing
+              ? 'bg-surface-tertiary text-text-primary'
+              : 'text-text-secondary hover:bg-surface-tertiary hover:text-text-primary',
+            'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+          )}
+        >
+          {editing ? <Check size={14} /> : <Pencil size={14} />}
+          {editing ? 'Terminer' : 'Editer le texte'}
+        </button>
+        <button
+          type="button"
+          onClick={downloadPdf}
+          disabled={pdfLoading}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
+            'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+            pdfLoading && 'cursor-not-allowed opacity-50',
+          )}
+        >
+          <FileDown size={14} />
+          {pdfLoading ? 'PDF...' : 'PDF'}
+        </button>
+        <button
+          type="button"
+          onClick={download}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
+            'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+          )}
+        >
+          <Download size={14} />
+          HTML
+        </button>
+        <button
+          type="button"
+          onClick={goFullscreen}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg bg-text-primary px-3 py-1.5 text-xs font-medium text-surface-primary',
+            'transition-opacity duration-150 hover:opacity-90',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+          )}
+        >
+          <Maximize2 size={14} />
+          Plein ecran
+        </button>
+      </div>
+
+      <span className="mt-1 block w-full max-w-[400px] px-1 text-xs text-text-secondary">
+        Apercu facon post. Editez le texte des cartes, ajustez la legende, exportez en PDF (carrousel LinkedIn) ou HTML.
       </span>
     </div>
   );
