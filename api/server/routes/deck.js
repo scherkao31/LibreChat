@@ -101,28 +101,33 @@ router.post('/images', async (req, res) => {
   const height = num(req.body?.height, 1350);
   const base = gotenbergUrl.replace(/\/+$/, '');
 
+  const screenshot = async (html) => {
+    const form = new FormData();
+    form.append('files', new Blob([html], { type: 'text/html' }), 'index.html');
+    form.append('width', String(width));
+    form.append('height', String(height));
+    form.append('format', 'png');
+    const shot = await fetch(`${base}/forms/chromium/screenshot/html`, { method: 'POST', body: form });
+    if (!shot.ok) {
+      const detail = await shot.text().catch(() => '');
+      logger.error(`[deck/images] Gotenberg ${shot.status}: ${detail.slice(0, 200)}`);
+      throw new Error('screenshot failed');
+    }
+    return Buffer.from(await shot.arrayBuffer());
+  };
+
   try {
+    const valid = slides.filter((h) => typeof h === 'string' && h.length > 0);
+    // Une seule carte -> on renvoie le PNG directement (pas de zip).
+    if (valid.length === 1) {
+      const png = await screenshot(valid[0]);
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', 'attachment; filename="image.png"');
+      return res.status(200).send(png);
+    }
     const zip = new JSZip();
-    for (let i = 0; i < slides.length; i++) {
-      const html = slides[i];
-      if (typeof html !== 'string' || html.length === 0) {
-        continue;
-      }
-      const form = new FormData();
-      form.append('files', new Blob([html], { type: 'text/html' }), 'index.html');
-      form.append('width', String(width));
-      form.append('height', String(height));
-      form.append('format', 'png');
-      const shot = await fetch(`${base}/forms/chromium/screenshot/html`, {
-        method: 'POST',
-        body: form,
-      });
-      if (!shot.ok) {
-        const detail = await shot.text().catch(() => '');
-        logger.error(`[deck/images] Gotenberg ${shot.status}: ${detail.slice(0, 200)}`);
-        return res.status(502).json({ error: "La generation d'images a echoue." });
-      }
-      const buf = Buffer.from(await shot.arrayBuffer());
+    for (let i = 0; i < valid.length; i++) {
+      const buf = await screenshot(valid[i]);
       zip.file(`carte-${String(i + 1).padStart(2, '0')}.png`, buf);
     }
     const zipBuf = await zip.generateAsync({ type: 'nodebuffer' });

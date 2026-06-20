@@ -15,33 +15,57 @@ export function buildPerSlideHtmls(cleanHtml: string, w: number, h: number): str
   );
 }
 
+/** Renvoie le HTML propre du deck en ne gardant QUE la slide a l'index donne. */
+export function filterToSlideHtml(cleanHtml: string, index: number): string {
+  const docu = new DOMParser().parseFromString(cleanHtml, 'text/html');
+  const slides = Array.from(docu.querySelectorAll('.slide'));
+  slides.forEach((s, i) => {
+    if (i !== index) {
+      s.remove();
+    }
+  });
+  return `<!DOCTYPE html>\n${docu.documentElement.outerHTML}`;
+}
+
 /**
- * Demande au serveur un PNG par carte (via Gotenberg), recoit un ZIP et le
- * telecharge. Renvoie false s'il n'y a aucune carte. Lance en cas d'erreur reseau.
+ * Envoie des pages HTML (une par carte) au serveur, qui renvoie un PNG (si une seule
+ * carte) ou un ZIP (plusieurs), et telecharge le resultat avec la bonne extension.
+ * Renvoie false s'il n'y a aucune carte ; lance en cas d'erreur reseau.
  */
+export async function downloadImagesFromHtmls(
+  perSlideHtmls: string[],
+  w: number,
+  h: number,
+  baseName: string,
+): Promise<boolean> {
+  if (perSlideHtmls.length === 0) {
+    return false;
+  }
+  const resp = await axios.post(
+    '/api/deck/images',
+    { slides: perSlideHtmls, width: w, height: h },
+    { responseType: 'arraybuffer' },
+  );
+  const ct = String(resp.headers?.['content-type'] || '');
+  const isPng = ct.includes('image/png');
+  const blob = new Blob([resp.data], { type: isPng ? 'image/png' : 'application/zip' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${baseName}.${isPng ? 'png' : 'zip'}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
+}
+
+/** Compat : exporte TOUTES les cartes d'un deck propre (zip), comme avant. */
 export async function downloadDeckImages(
   cleanHtml: string,
   w: number,
   h: number,
   filename: string,
 ): Promise<boolean> {
-  const slides = buildPerSlideHtmls(cleanHtml, w, h);
-  if (slides.length === 0) {
-    return false;
-  }
-  const resp = await axios.post(
-    '/api/deck/images',
-    { slides, width: w, height: h },
-    { responseType: 'arraybuffer' },
-  );
-  const blob = new Blob([resp.data], { type: 'application/zip' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  return true;
+  return downloadImagesFromHtmls(buildPerSlideHtmls(cleanHtml, w, h), w, h, filename.replace(/\.zip$/, ''));
 }

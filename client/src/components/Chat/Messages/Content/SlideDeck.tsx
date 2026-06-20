@@ -5,7 +5,9 @@ import { useToastContext } from '@librechat/client';
 import { dataService } from 'librechat-data-provider';
 import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
-import { downloadDeckImages } from '~/utils/deckImages';
+import { buildPerSlideHtmls, filterToSlideHtml, downloadImagesFromHtmls } from '~/utils/deckImages';
+import ExportMenu from '~/components/Chat/Messages/Content/ExportMenu';
+import { useActiveDeckSlide } from '~/components/Chat/Messages/Content/useActiveDeckSlide';
 
 /**
  * SlideDeck — widget inline pour les presentations HTML (bloc `lancya_deck`).
@@ -61,6 +63,7 @@ const INJECT_SCRIPT = `<script id="ld-script">
     i = Math.max(0, Math.min(slides.length - 1, n));
     for (var k = 0; k < slides.length; k++) { slides[k].classList.toggle('ld-active', k === i); }
     if (counter) { counter.textContent = (i + 1) + ' / ' + slides.length; }
+    try { parent.postMessage({ lancyaDeckSlide: true, index: i, count: slides.length }, '*'); } catch (e) {}
   }
   if (slides.length > 1) {
     var bar = document.createElement('div'); bar.className = 'ld-nav';
@@ -164,6 +167,7 @@ function buildPrintHtml(cleanHtml: string): string {
 
 const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { index: currentIndex, count: slideCount } = useActiveDeckSlide(iframeRef);
   const ready = looksComplete(raw);
   const srcDoc = useMemo(() => (ready ? buildSrcDoc(raw) : ''), [ready, raw]);
 
@@ -297,52 +301,61 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
   // Export PDF haute fidelite : on envoie le HTML PROPRE (avec les modifs de
   // l'utilisateur) en mise en page d'impression au serveur, qui le convertit via
   // Gotenberg (Chromium). Telechargement direct du PDF.
-  const downloadPdf = useCallback(async () => {
-    const clean = cleanEditedHtml();
-    if (!clean) {
-      return;
-    }
-    setPdfLoading(true);
-    try {
-      const resp = await axios.post(
-        '/api/deck/pdf',
-        { html: buildPrintHtml(clean) },
-        { responseType: 'arraybuffer' },
-      );
-      const blob = new Blob([resp.data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'presentation.pdf';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      showToast?.({
-        message: "L'export PDF n'est pas disponible pour le moment.",
-        status: 'error',
-      });
-    } finally {
-      setPdfLoading(false);
-    }
-  }, [cleanEditedHtml, showToast]);
+  const downloadPdf = useCallback(
+    async (scope: 'all' | 'current') => {
+      const clean = cleanEditedHtml();
+      if (!clean) {
+        return;
+      }
+      const html = scope === 'current' ? filterToSlideHtml(clean, currentIndex) : clean;
+      setPdfLoading(true);
+      try {
+        const resp = await axios.post(
+          '/api/deck/pdf',
+          { html: buildPrintHtml(html) },
+          { responseType: 'arraybuffer' },
+        );
+        const blob = new Blob([resp.data], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = scope === 'current' ? 'slide.pdf' : 'presentation.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch {
+        showToast?.({
+          message: "L'export PDF n'est pas disponible pour le moment.",
+          status: 'error',
+        });
+      } finally {
+        setPdfLoading(false);
+      }
+    },
+    [cleanEditedHtml, currentIndex, showToast],
+  );
 
-  // Export d'un PNG par slide (1280x720), regroupes en ZIP.
-  const downloadImages = useCallback(async () => {
-    const clean = cleanEditedHtml();
-    if (!clean) {
-      return;
-    }
-    setImgLoading(true);
-    try {
-      await downloadDeckImages(clean, 1280, 720, 'slides-images.zip');
-    } catch {
-      showToast?.({ message: "L'export en images n'est pas disponible pour le moment.", status: 'error' });
-    } finally {
-      setImgLoading(false);
-    }
-  }, [cleanEditedHtml, showToast]);
+  // Export PNG par slide (1280x720) : la slide courante (PNG) ou toutes (ZIP).
+  const downloadImages = useCallback(
+    async (scope: 'all' | 'current') => {
+      const clean = cleanEditedHtml();
+      if (!clean) {
+        return;
+      }
+      const all = buildPerSlideHtmls(clean, 1280, 720);
+      const list = scope === 'current' ? all.slice(currentIndex, currentIndex + 1) : all;
+      setImgLoading(true);
+      try {
+        await downloadImagesFromHtmls(list, 1280, 720, scope === 'current' ? 'slide' : 'slides-images');
+      } catch {
+        showToast?.({ message: "L'export en images n'est pas disponible pour le moment.", status: 'error' });
+      } finally {
+        setImgLoading(false);
+      }
+    },
+    [cleanEditedHtml, currentIndex, showToast],
+  );
 
   if (!ready) {
     return (
@@ -407,35 +420,24 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
             {editing ? <Check size={14} /> : <Pencil size={14} />}
             {editing ? 'Terminer' : 'Editer le texte'}
           </button>
-          <button
-            type="button"
-            onClick={downloadPdf}
-            disabled={pdfLoading}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
-              'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
-              pdfLoading && 'cursor-not-allowed opacity-50',
-            )}
-          >
-            <FileDown size={14} />
-            {pdfLoading ? 'PDF...' : 'PDF'}
-          </button>
-          <button
-            type="button"
-            onClick={downloadImages}
-            disabled={imgLoading}
-            title="Un PNG par slide, dans un ZIP"
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
-              'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
-              imgLoading && 'cursor-not-allowed opacity-50',
-            )}
-          >
-            <ImageDown size={14} />
-            {imgLoading ? 'Images...' : 'Images'}
-          </button>
+          <ExportMenu
+            icon={<FileDown size={14} />}
+            label="PDF"
+            loading={pdfLoading}
+            multiple={slideCount > 1}
+            currentLabel="Cette slide"
+            onAll={() => downloadPdf('all')}
+            onCurrent={() => downloadPdf('current')}
+          />
+          <ExportMenu
+            icon={<ImageDown size={14} />}
+            label="Images"
+            loading={imgLoading}
+            multiple={slideCount > 1}
+            currentLabel="Cette slide"
+            onAll={() => downloadImages('all')}
+            onCurrent={() => downloadImages('current')}
+          />
           <button
             type="button"
             onClick={download}
