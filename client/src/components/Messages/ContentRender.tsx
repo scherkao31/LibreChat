@@ -1,4 +1,4 @@
-import { useCallback, useMemo, memo } from 'react';
+import { useCallback, useMemo, memo, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import type { TMessage, TMessageContentParts } from 'librechat-data-provider';
@@ -11,6 +11,7 @@ import SiblingSwitch from '~/components/Chat/Messages/SiblingSwitch';
 import HoverButtons from '~/components/Chat/Messages/HoverButtons';
 import MessageIcon from '~/components/Chat/Messages/MessageIcon';
 import SubRow from '~/components/Chat/Messages/SubRow';
+import RefineSelection from '~/components/Messages/RefineSelection';
 import { fontSizeAtom } from '~/store/fontSize';
 import store from '~/store';
 
@@ -122,6 +123,8 @@ const ContentRender = memo(function ContentRender({
   });
   const fontSize = useAtomValue(fontSizeAtom);
   const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
+  // Conteneur de texte (reponses IA) pour l'affinage par selection.
+  const textRef = useRef<HTMLDivElement>(null);
 
   const handleRegenerateMessage = useCallback(() => regenerateMessage(), [regenerateMessage]);
   const isLast = useMemo(
@@ -223,6 +226,7 @@ const ContentRender = memo(function ContentRender({
 
         <div className="flex flex-col gap-1">
           <div
+            ref={textRef}
             className={cn(
               'flex min-h-[20px] max-w-full flex-grow flex-col gap-0',
               // Bulle coloree pour mes messages (cote utilisateur).
@@ -245,6 +249,8 @@ const ContentRender = memo(function ContentRender({
               conversationId={conversation?.conversationId}
               content={msg.content as Array<TMessageContentParts | undefined>}
             />
+            {/* Affiner en selectionnant (reponses IA uniquement). */}
+            {msg.isCreatedByUser !== true && <RefineSelection containerRef={textRef} />}
           </div>
           {hasNoChildren && isSubmitting ? (
             <PlaceholderRow />
