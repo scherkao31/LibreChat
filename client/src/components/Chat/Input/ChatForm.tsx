@@ -27,6 +27,8 @@ import { useGetStartupConfig } from '~/data-provider';
 import { mainTextareaId, BadgeItem } from '~/common';
 import AttachFileChat from './Files/AttachFileChat';
 import FileFormChat from './Files/FileFormChat';
+import PastedTextChips from './PastedTextChips';
+import type { PastedBlock } from './PastedTextChips';
 import TextareaHeader from './TextareaHeader';
 import SkillsCommand from './SkillsCommand';
 import PromptsCommand from './PromptsCommand';
@@ -39,6 +41,10 @@ import EditBadges from './EditBadges';
 import BadgeRow from './BadgeRow';
 import Mention from './Mention';
 import store from '~/store';
+
+/** Au-dela de ce seuil, un texte colle devient une vignette au lieu de remplir le champ. */
+const PASTE_CHIP_MIN_CHARS = 1200;
+const PASTE_CHIP_MIN_LINES = 10;
 
 interface ChatFormProps {
   index: number;
@@ -76,6 +82,7 @@ const ChatForm = memo(function ChatForm({
   const [visualRowCount, setVisualRowCount] = useState(1);
   const [isTextAreaFocused, setIsTextAreaFocused] = useState(false);
   const [backupBadges, setBackupBadges] = useState<Pick<BadgeItem, 'id'>[]>([]);
+  const [pastedBlocks, setPastedBlocks] = useState<PastedBlock[]>([]);
 
   const SpeechToText = useRecoilValue(store.speechToText);
   /* Micro (dictee vocale) masque pour l'instant : sans STT configure, le defaut
@@ -189,6 +196,52 @@ const ChatForm = memo(function ChatForm({
 
   useQueryParams({ textAreaRef });
 
+  // Collage d'un texte long -> vignette (au lieu de remplir le champ). Les fichiers et
+  // les collages courts gardent le comportement normal (handlePaste de useTextarea).
+  const handlePasteWithChips = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const cd = e.clipboardData;
+      const text = cd?.getData('text/plain') ?? '';
+      const hasFiles = (cd?.files?.length ?? 0) > 0;
+      const lineCount = text ? text.split('\n').length : 0;
+      if (
+        !hasFiles &&
+        text &&
+        (text.length >= PASTE_CHIP_MIN_CHARS || lineCount >= PASTE_CHIP_MIN_LINES)
+      ) {
+        e.preventDefault();
+        setPastedBlocks((prev) => [...prev, { id: `${Date.now()}-${prev.length}`, text }]);
+        return;
+      }
+      handlePaste(e);
+    },
+    [handlePaste],
+  );
+
+  // Envoi : on fusionne le texte tape et les contenus colles (vignettes). On gere nous-
+  // meme l'envoi (sans la validation 'required') pour autoriser l'envoi quand il n'y a
+  // qu'une vignette et un champ vide.
+  const handleFormSubmit = useCallback(
+    (e?: React.FormEvent<HTMLFormElement>) => {
+      e?.preventDefault();
+      if (isSubmitting) {
+        return;
+      }
+      const typed = methods.getValues('text') ?? '';
+      if (!typed.trim() && pastedBlocks.length === 0) {
+        return;
+      }
+      let text = typed;
+      if (pastedBlocks.length > 0) {
+        const joined = pastedBlocks.map((b) => b.text).join('\n\n');
+        text = typed.trim() ? `${typed}\n\n${joined}` : joined;
+      }
+      setPastedBlocks([]);
+      submitMessage({ text });
+    },
+    [isSubmitting, methods, pastedBlocks, submitMessage],
+  );
+
   const { ref, ...registerProps } = methods.register('text', {
     required: true,
     onChange: useCallback(
@@ -241,7 +294,7 @@ const ChatForm = memo(function ChatForm({
 
   return (
     <form
-      onSubmit={methods.handleSubmit(submitMessage)}
+      onSubmit={handleFormSubmit}
       className={cn(
         'mx-auto flex w-full flex-row gap-3 transition-[max-width] duration-300 sm:px-2',
         maximizeChatSpace ? 'max-w-full' : 'md:max-w-3xl xl:max-w-4xl',
@@ -302,6 +355,7 @@ const ChatForm = memo(function ChatForm({
               setFiles={setFiles}
               setFilesLoading={setFilesLoading}
             />
+            <PastedTextChips blocks={pastedBlocks} onChange={setPastedBlocks} />
             {endpoint && (
               <div className={cn('flex', isRTL ? 'flex-row-reverse' : 'flex-row')}>
                 <div
@@ -323,7 +377,7 @@ const ChatForm = memo(function ChatForm({
                         e;
                     }}
                     disabled={disableInputs || isNotAppendable}
-                    onPaste={handlePaste}
+                    onPaste={handlePasteWithChips}
                     onKeyDown={handleKeyDown}
                     onKeyUp={handleKeyUp}
                     onCompositionStart={handleCompositionStart}
@@ -401,6 +455,7 @@ const ChatForm = memo(function ChatForm({
                     <SendButton
                       ref={submitButtonRef}
                       control={methods.control}
+                      hasPendingContent={pastedBlocks.length > 0}
                       disabled={filesLoading || isSubmitting || disableInputs || isNotAppendable}
                     />
                   )

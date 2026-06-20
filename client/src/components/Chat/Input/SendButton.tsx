@@ -8,6 +8,8 @@ import { cn } from '~/utils';
 type SendButtonProps = {
   disabled: boolean;
   control: Control<{ text: string }>;
+  /** Permet l'envoi meme si le champ texte est vide (ex. une vignette de texte colle). */
+  hasPendingContent?: boolean;
 };
 
 const SubmitButton = React.memo(
@@ -42,7 +44,9 @@ const SendButton = React.memo(
   forwardRef((props: SendButtonProps, ref: React.ForwardedRef<HTMLButtonElement>) => {
     const data = useWatch({ control: props.control });
     const content = data?.text?.trim();
-    return <SubmitButton ref={ref} disabled={props.disabled || !content} />;
+    return (
+      <SubmitButton ref={ref} disabled={props.disabled || (!content && !props.hasPendingContent)} />
+    );
   }),
 );
 
