@@ -9,6 +9,7 @@ import { buildPerSlideHtmls, downloadImagesFromHtmls } from '~/utils/deckImages'
 import ExportMenu from '~/components/Chat/Messages/Content/ExportMenu';
 import DeckAnnotate from '~/components/Chat/Messages/Content/DeckAnnotate';
 import { CHART_RENDER_SCRIPT } from '~/components/Chat/Messages/Content/chartRenderer';
+import { DIAGRAM_RENDER_SCRIPT } from '~/components/Chat/Messages/Content/diagramRenderer';
 
 /**
  * VisualViewer — widget inline pour un VISUEL unique (un seul canvas) : graphique
@@ -121,14 +122,14 @@ function looksComplete(raw: string): boolean {
   return t.includes('</body>') || t.includes('</html>');
 }
 
-function buildSrcDoc(html: string, w: number, h: number, chart: boolean): string {
+function buildSrcDoc(html: string, w: number, h: number, extra: string): string {
   let out = html;
   out = out.includes('</head>')
     ? out.replace('</head>', `${injectStyle(w, h)}</head>`)
     : `${injectStyle(w, h)}${out}`;
-  // Le renderer de graphiques tourne APRES le script d'echelle (dessine le SVG depuis
-  // les donnees data-spec). Injecte uniquement pour les charts.
-  const tail = injectScript(w, h) + (chart ? CHART_RENDER_SCRIPT : '');
+  // Le renderer (graphique ou schema) tourne APRES le script d'echelle : il lit les
+  // donnees data-spec et dessine le SVG. `extra` est vide pour une infographie.
+  const tail = injectScript(w, h) + (extra || '');
   out = out.includes('</body>') ? out.replace('</body>', `${tail}</body>`) : `${out}${tail}`;
   return out;
 }
@@ -150,8 +151,13 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
   const ready = looksComplete(raw);
   const { w, h } = useMemo(() => parseCanvas(raw, variant.w, variant.h), [raw, variant.w, variant.h]);
   const portrait = h > w;
-  const isChart = variant.tag === 'lancya_chart';
-  const srcDoc = useMemo(() => (ready ? buildSrcDoc(raw, w, h, isChart) : ''), [ready, raw, w, h, isChart]);
+  const extra =
+    variant.tag === 'lancya_chart'
+      ? CHART_RENDER_SCRIPT
+      : variant.tag === 'lancya_diagram'
+        ? DIAGRAM_RENDER_SCRIPT
+        : '';
+  const srcDoc = useMemo(() => (ready ? buildSrcDoc(raw, w, h, extra) : ''), [ready, raw, w, h, extra]);
 
   const palette = useMemo(() => parseRootColors(raw), [raw]);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -179,10 +185,12 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
       return null;
     }
     const clone = d.documentElement.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll('#ld-style, #ld-script, #ld-chart').forEach((el) => el.remove());
+    clone
+      .querySelectorAll('#ld-style, #ld-script, #ld-chart, #ld-diagram')
+      .forEach((el) => el.remove());
     clone.querySelectorAll('.slide').forEach((s) => (s as HTMLElement).removeAttribute('contenteditable'));
     if (emptyCharts) {
-      clone.querySelectorAll('.lancya-chart').forEach((el) => {
+      clone.querySelectorAll('.lancya-chart, .lancya-diagram').forEach((el) => {
         el.innerHTML = '';
       });
     }
