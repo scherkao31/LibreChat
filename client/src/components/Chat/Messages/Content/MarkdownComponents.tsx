@@ -9,6 +9,8 @@ import SuggestedVariants from '~/components/Chat/Messages/Content/SuggestedVaria
 import SlideDeck from '~/components/Chat/Messages/Content/SlideDeck';
 import DocViewer from '~/components/Chat/Messages/Content/DocViewer';
 import CarouselViewer from '~/components/Chat/Messages/Content/CarouselViewer';
+import VisualViewer from '~/components/Chat/Messages/Content/VisualViewer';
+import TableViewer from '~/components/Chat/Messages/Content/TableViewer';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
 import { useCodeBlockContext } from '~/Providers';
@@ -50,6 +52,8 @@ export const code: React.ElementType = memo(function MarkdownCode({
   const isDeck = lang === 'lancya_deck';
   const isDocBlock = lang === 'lancya_doc';
   const isCarousel = lang === 'lancya_carousel';
+  const isVisual = lang === 'lancya_chart' || lang === 'lancya_diagram' || lang === 'lancya_visual';
+  const isTable = lang === 'lancya_table';
   const isSingleLine = isSingleLineCode(children);
 
   const { getNextIndex, resetCounter } = useCodeBlockContext();
@@ -62,6 +66,8 @@ export const code: React.ElementType = memo(function MarkdownCode({
         isDeck ||
         isDocBlock ||
         isCarousel ||
+        isVisual ||
+        isTable ||
         isSingleLine,
     ),
   ).current;
@@ -87,6 +93,12 @@ export const code: React.ElementType = memo(function MarkdownCode({
   } else if (isCarousel) {
     const content = typeof children === 'string' ? children : String(children);
     return <CarouselViewer raw={content} />;
+  } else if (isVisual) {
+    const content = typeof children === 'string' ? children : String(children);
+    return <VisualViewer raw={content} tag={lang as string} />;
+  } else if (isTable) {
+    const content = typeof children === 'string' ? children : String(children);
+    return <TableViewer raw={content} />;
   } else if (isMermaid) {
     const content = typeof children === 'string' ? children : String(children);
     return (
