@@ -1,21 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import { useSubmitMessage } from '~/hooks';
 
 /**
  * RefineSelection — interaction "affiner en selectionnant". Quand l'utilisateur
- * surligne un passage du texte d'une reponse de l'IA, une petite barre flottante
- * apparait au-dessus de la selection (raccourcir / developper / reformuler / ton /
- * autre). Un clic envoie un message cible qui cite ce passage, via useSubmitMessage :
- * l'IA repond avec la version retravaillee. C'est le pendant "texte" du crayon
- * d'annotation des widgets.
+ * surligne un passage du texte d'une reponse de l'IA, une barre flottante apparait
+ * au-dessus de la selection. Deux usages :
+ *  - ACTION IMMEDIATE : un clic (Raccourcir / Reformuler / ...) envoie tout de suite un
+ *    message cible qui cite ce passage (via useSubmitMessage) ;
+ *  - ACCUMULATION : "Noter" permet d'ajouter le passage + un avis a une LISTE. On
+ *    repete sur plusieurs passages, puis "Demander a l'IA" envoie tout d'un coup.
+ * Dans tous les cas, le message part dans la MEME conversation : l'IA garde tout le
+ * contexte (sa reponse entiere), le passage cite sert juste d'ancre.
  *
- * Monte dans le conteneur de texte d'un message ASSISTANT (containerRef). La barre
- * est rendue via un portail (position: fixed) pour ne pas etre rognee par la bulle.
+ * Monte dans le conteneur de texte d'un message ASSISTANT (containerRef).
  */
 
 type Pop = { cx: number; top: number; bottom: number; text: string };
+type Note = { id: number; text: string; note: string };
 
 const ACTIONS: { key: string; label: string; build: (t: string) => string }[] = [
   {
@@ -45,11 +49,27 @@ const ACTIONS: { key: string; label: string; build: (t: string) => string }[] = 
   },
 ];
 
+const snippet = (t: string) => (t.length > 60 ? t.slice(0, 60) + '…' : t);
+
+function buildBatch(batch: Note[], global: string): string {
+  const lines = batch
+    .map((b, i) => `${i + 1}. « ${b.text} »${b.note ? ` : ${b.note}` : ''}`)
+    .join('\n');
+  const g = global.trim();
+  const head = g
+    ? `Voici plusieurs passages de ta reponse avec mes remarques. ${g} Renvoie la version corrigee en tenant compte de tout.`
+    : `Voici plusieurs passages de ta reponse avec mes remarques. Prends-les toutes en compte et renvoie la version corrigee.`;
+  return `${head}\n\n${lines}`;
+}
+
 export default function RefineSelection({ containerRef }: { containerRef: RefObject<HTMLElement> }) {
   const [pop, setPop] = useState<Pop | null>(null);
-  const [custom, setCustom] = useState(false);
-  const [customText, setCustomText] = useState('');
+  const [noting, setNoting] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [batch, setBatch] = useState<Note[]>([]);
+  const [global, setGlobal] = useState('');
   const barRef = useRef<HTMLDivElement>(null);
+  const nextId = useRef(1);
   const { submitMessage } = useSubmitMessage();
 
   // Detecte une selection de texte DANS ce message (hors blocs de code et widgets).
@@ -85,15 +105,15 @@ export default function RefineSelection({ containerRef }: { containerRef: RefObj
       if (!rect || (rect.width === 0 && rect.height === 0)) {
         return;
       }
-      setCustom(false);
-      setCustomText('');
+      setNoting(false);
+      setNoteText('');
       setPop({ cx: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, text });
     };
     el.addEventListener('mouseup', onUp);
     return () => el.removeEventListener('mouseup', onUp);
   }, [containerRef]);
 
-  // Fermer : clic hors barre, scroll.
+  // Fermer la barre : clic hors barre, scroll.
   useEffect(() => {
     if (!pop) {
       return;
@@ -113,79 +133,168 @@ export default function RefineSelection({ containerRef }: { containerRef: RefObj
     };
   }, [pop]);
 
-  const send = useCallback(
+  const clearSel = () => window.getSelection()?.removeAllRanges();
+
+  const sendNow = useCallback(
     (text: string) => {
       submitMessage({ text });
-      window.getSelection()?.removeAllRanges();
+      clearSel();
       setPop(null);
     },
     [submitMessage],
   );
 
-  if (!pop) {
-    return null;
-  }
+  const addToBatch = useCallback(() => {
+    if (!pop) {
+      return;
+    }
+    setBatch((prev) => [...prev, { id: nextId.current++, text: pop.text, note: noteText.trim() }]);
+    clearSel();
+    setPop(null);
+  }, [pop, noteText]);
 
-  const below = pop.top < 64;
-  const style = below
-    ? { left: pop.cx, top: pop.bottom + 8 }
-    : { left: pop.cx, top: pop.top - 8 };
+  const removeNote = (id: number) => setBatch((prev) => prev.filter((b) => b.id !== id));
 
-  return createPortal(
-    <div
-      ref={barRef}
-      className={`fixed z-[60] -translate-x-1/2 ${below ? '' : '-translate-y-full'}`}
-      style={style}
-    >
-      <div className="flex items-center gap-0.5 rounded-xl border border-border-medium bg-surface-primary p-1 shadow-lg">
-        {!custom ? (
-          <>
-            {ACTIONS.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => send(a.build(pop.text))}
-                className="whitespace-nowrap rounded-lg px-2.5 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-tertiary hover:text-text-primary"
-              >
-                {a.label}
-              </button>
+  const sendBatch = useCallback(() => {
+    if (!batch.length) {
+      return;
+    }
+    submitMessage({ text: buildBatch(batch, global) });
+    setBatch([]);
+    setGlobal('');
+  }, [batch, global, submitMessage]);
+
+  const below = pop ? pop.top < 64 : false;
+
+  return (
+    <>
+      {/* Liste cumulative (mes remarques sur ce message) : not-prose pour exclure les
+          selections faites a l'interieur de la liste elle-meme. */}
+      {batch.length > 0 && (
+        <div className="not-prose my-2 rounded-xl border border-border-medium bg-surface-secondary p-2.5 text-sm">
+          <div className="mb-1.5 px-1 text-xs font-medium text-text-secondary">
+            Mes remarques ({batch.length})
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {batch.map((b, i) => (
+              <div key={b.id} className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-submit text-[11px] font-bold text-white">
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs italic text-text-secondary">« {snippet(b.text)} »</div>
+                  {b.note && <div className="text-xs text-text-primary">{b.note}</div>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeNote(b.id)}
+                  className="shrink-0 text-text-secondary hover:text-text-primary"
+                  aria-label="Retirer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             ))}
+          </div>
+          <input
+            value={global}
+            onChange={(e) => setGlobal(e.target.value)}
+            placeholder="Instruction globale (optionnel)"
+            className="mt-2 w-full rounded-lg border border-border-light bg-surface-primary px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none"
+          />
+          <div className="mt-2 flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => setCustom(true)}
-              className="whitespace-nowrap rounded-lg px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-tertiary hover:text-text-primary"
+              onClick={() => {
+                setBatch([]);
+                setGlobal('');
+              }}
+              className="rounded-md px-2 py-1 text-xs text-text-secondary hover:text-text-primary"
             >
-              Autre…
+              Tout effacer
             </button>
-          </>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const t = customText.trim();
-              if (t) {
-                send(`Concernant ce passage de ta reponse : « ${pop.text} », ${t}`);
-              }
-            }}
-            className="flex items-center gap-1"
-          >
-            <input
-              autoFocus
-              value={customText}
-              onChange={(e) => setCustomText(e.target.value)}
-              placeholder="Que faire de ce passage ?"
-              className="w-56 rounded-lg border border-border-light bg-surface-secondary px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none"
-            />
             <button
-              type="submit"
-              className="whitespace-nowrap rounded-lg bg-surface-submit px-2.5 py-1 text-xs font-medium text-white"
+              type="button"
+              onClick={sendBatch}
+              className="rounded-md bg-surface-submit px-3 py-1 text-xs font-medium text-white"
             >
-              Envoyer
+              Demander a l'IA
             </button>
-          </form>
+          </div>
+        </div>
+      )}
+
+      {/* Barre flottante au-dessus de la selection. */}
+      {pop &&
+        createPortal(
+          <div
+            ref={barRef}
+            className={`fixed z-[60] -translate-x-1/2 ${below ? '' : '-translate-y-full'}`}
+            style={below ? { left: pop.cx, top: pop.bottom + 8 } : { left: pop.cx, top: pop.top - 8 }}
+          >
+            <div className="flex items-center gap-0.5 rounded-xl border border-border-medium bg-surface-primary p-1 shadow-lg">
+              {!noting ? (
+                <>
+                  {ACTIONS.map((a) => (
+                    <button
+                      key={a.key}
+                      type="button"
+                      onClick={() => sendNow(a.build(pop.text))}
+                      className="whitespace-nowrap rounded-lg px-2.5 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-tertiary hover:text-text-primary"
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                  <span className="mx-0.5 h-4 w-px bg-border-medium" />
+                  <button
+                    type="button"
+                    onClick={() => setNoting(true)}
+                    className="whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-medium text-text-primary transition-colors hover:bg-surface-tertiary"
+                  >
+                    + Noter
+                  </button>
+                </>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addToBatch();
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <input
+                    autoFocus
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Ton avis sur ce passage"
+                    className="w-52 rounded-lg border border-border-light bg-surface-secondary px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="whitespace-nowrap rounded-lg bg-surface-submit px-2.5 py-1 text-xs font-medium text-white"
+                  >
+                    Ajouter
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      sendNow(
+                        noteText.trim()
+                          ? `Concernant ce passage de ta reponse : « ${pop.text} », ${noteText.trim()}`
+                          : `Retravaille ce passage de ta reponse : « ${pop.text} »`,
+                      )
+                    }
+                    className="whitespace-nowrap rounded-lg px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-tertiary hover:text-text-primary"
+                    title="Envoyer seulement ce passage maintenant"
+                  >
+                    Envoyer
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>,
+          document.body,
         )}
-      </div>
-    </div>,
-    document.body,
+    </>
   );
 }
