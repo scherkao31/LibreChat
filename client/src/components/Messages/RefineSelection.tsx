@@ -21,16 +21,14 @@ import { useSubmitMessage } from '~/hooks';
 type Pop = { cx: number; top: number; bottom: number; text: string };
 type Note = { id: number; text: string; note: string };
 
+// Actions rapides. "Expliquer" est une QUESTION (en savoir plus), pas une reecriture ;
+// les autres sont des retouches explicites. Pour tout le reste, "+ Noter" laisse l'avis
+// ou la question libre.
 const ACTIONS: { key: string; label: string; build: (t: string) => string }[] = [
   {
-    key: 'short',
-    label: 'Raccourcir',
-    build: (t) => `Raccourcis ce passage de ta reponse en gardant l'essentiel, puis donne la version reecrite : « ${t} »`,
-  },
-  {
-    key: 'expand',
-    label: 'Developper',
-    build: (t) => `Developpe ce passage de ta reponse avec plus de detail, puis donne la version reecrite : « ${t} »`,
+    key: 'explain',
+    label: 'Expliquer',
+    build: (t) => `Peux-tu m'en dire plus sur ce passage de ta reponse et l'expliquer davantage : « ${t} » ?`,
   },
   {
     key: 'rephrase',
@@ -38,14 +36,19 @@ const ACTIONS: { key: string; label: string; build: (t: string) => string }[] = 
     build: (t) => `Reformule ce passage de ta reponse autrement, puis donne la version reecrite : « ${t} »`,
   },
   {
-    key: 'formal',
-    label: 'Plus formel',
-    build: (t) => `Reecris ce passage de ta reponse sur un ton plus formel, puis donne la version reecrite : « ${t} »`,
+    key: 'short',
+    label: 'Raccourcir',
+    build: (t) => `Raccourcis ce passage de ta reponse en gardant l'essentiel, puis donne la version reecrite : « ${t} »`,
   },
   {
     key: 'simple',
     label: 'Plus simple',
     build: (t) => `Reecris ce passage de ta reponse en plus simple et plus clair, puis donne la version reecrite : « ${t} »`,
+  },
+  {
+    key: 'formal',
+    label: 'Plus formel',
+    build: (t) => `Reecris ce passage de ta reponse sur un ton plus formel, puis donne la version reecrite : « ${t} »`,
   },
 ];
 
@@ -56,9 +59,11 @@ function buildBatch(batch: Note[], global: string): string {
     .map((b, i) => `${i + 1}. « ${b.text} »${b.note ? ` : ${b.note}` : ''}`)
     .join('\n');
   const g = global.trim();
+  // Formulation NEUTRE : selon ma remarque/question, l'IA corrige, precise, ou repond.
+  // On n'impose pas "version corrigee".
   const head = g
-    ? `Voici plusieurs passages de ta reponse avec mes remarques. ${g} Renvoie la version corrigee en tenant compte de tout.`
-    : `Voici plusieurs passages de ta reponse avec mes remarques. Prends-les toutes en compte et renvoie la version corrigee.`;
+    ? `Voici plusieurs passages de ta reponse. ${g}`
+    : `Voici plusieurs passages de ta reponse, chacun avec ma remarque ou ma question. Reponds a chacun comme il convient (corriger, preciser, repondre, developper selon le cas).`;
   return `${head}\n\n${lines}`;
 }
 
@@ -199,7 +204,7 @@ export default function RefineSelection({ containerRef }: { containerRef: RefObj
           <input
             value={global}
             onChange={(e) => setGlobal(e.target.value)}
-            placeholder="Instruction globale (optionnel)"
+            placeholder="Remarque ou question d'ensemble (optionnel)"
             className="mt-2 w-full rounded-lg border border-border-light bg-surface-primary px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none"
           />
           <div className="mt-2 flex items-center justify-end gap-2">
@@ -266,7 +271,7 @@ export default function RefineSelection({ containerRef }: { containerRef: RefObj
                     autoFocus
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Ton avis sur ce passage"
+                    placeholder="Ta remarque ou ta question"
                     className="w-52 rounded-lg border border-border-light bg-surface-secondary px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none"
                   />
                   <button
@@ -281,7 +286,7 @@ export default function RefineSelection({ containerRef }: { containerRef: RefObj
                       sendNow(
                         noteText.trim()
                           ? `Concernant ce passage de ta reponse : « ${pop.text} », ${noteText.trim()}`
-                          : `Retravaille ce passage de ta reponse : « ${pop.text} »`,
+                          : `A propos de ce passage de ta reponse : « ${pop.text} »`,
                       )
                     }
                     className="whitespace-nowrap rounded-lg px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-tertiary hover:text-text-primary"
