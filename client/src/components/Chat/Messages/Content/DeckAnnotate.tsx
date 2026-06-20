@@ -18,6 +18,16 @@ import { useSubmitMessage } from '~/hooks';
 
 type Pin = { id: number; xPct: number; yPct: number; label: string; note: string };
 
+/** Zone lisible a partir des pourcentages (pour designer un endroit, meme vide). */
+function zoneOf(xPct: number, yPct: number): string {
+  const v = yPct < 33 ? 'en haut' : yPct > 66 ? 'en bas' : 'au milieu';
+  const h = xPct < 33 ? 'a gauche' : xPct > 66 ? 'a droite' : 'au centre';
+  if (h === 'au centre') {
+    return v === 'au milieu' ? 'au centre' : v;
+  }
+  return `${v}, ${h}`;
+}
+
 export default function DeckAnnotate({
   iframeRef,
   kind,
@@ -78,9 +88,14 @@ export default function DeckAnnotate({
       return;
     }
     const lines = pins
-      .map((p, i) => `${i + 1}. ${p.label}${p.note ? ` : ${p.note}` : ''}`)
+      .map(
+        (p, i) =>
+          `${i + 1}. (zone : ${zoneOf(p.xPct, p.yPct)})${p.label ? ` element pointe : ${p.label}` : ''}${
+            p.note ? ` : ${p.note}` : ''
+          }`,
+      )
       .join('\n');
-    const text = `Modifie ${kind} ci-dessus selon mes annotations, puis renvoie la version complete mise a jour (le bloc entier).\n\nElements annotes :\n${lines}`;
+    const text = `Modifie ou complete ${kind} ci-dessus selon mes annotations, puis renvoie la version complete mise a jour (le bloc entier). Chaque repere indique une zone et, si pertinent, l'element pointe ; une zone sans element vise = ajouter quelque chose a cet endroit.\n\nAnnotations :\n${lines}`;
     submitMessage({ text });
     reset();
   }, [pins, kind, submitMessage]);
@@ -122,7 +137,8 @@ export default function DeckAnnotate({
           <div className="absolute bottom-2 left-2 right-2 z-30 max-h-[62%] overflow-auto rounded-xl border border-border-medium bg-surface-primary p-2.5 shadow-md">
             {pins.length === 0 ? (
               <div className="px-1 py-1.5 text-xs text-text-secondary">
-                Cliquez sur un element pour le pointer, puis ecrivez ce que vous voulez changer.
+                Cliquez sur un element pour le modifier, ou sur une zone vide pour y ajouter
+                quelque chose, puis ecrivez ce que vous voulez.
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -134,7 +150,7 @@ export default function DeckAnnotate({
                     <input
                       value={p.note}
                       onChange={(e) => setNote(p.id, e.target.value)}
-                      placeholder={p.label || 'Que changer ?'}
+                      placeholder={p.label || 'Que changer ou ajouter ici ?'}
                       className="min-w-0 flex-1 rounded-md border border-border-light bg-surface-secondary px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none"
                     />
                     <button
