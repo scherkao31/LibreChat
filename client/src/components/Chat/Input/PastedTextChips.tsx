@@ -86,7 +86,7 @@ export default function PastedTextChips({
             onClick={() => setOpenId(null)}
           >
             <div
-              className="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-surface-primary shadow-xl"
+              className="flex h-[80vh] max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-surface-primary shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4 border-b border-border-light px-5 py-4">
@@ -112,7 +112,7 @@ export default function PastedTextChips({
                 value={open.text}
                 onChange={(e) => edit(open.id, e.target.value)}
                 spellCheck={false}
-                className="m-4 flex-1 resize-none rounded-xl border border-border-light bg-surface-secondary p-3 font-mono text-sm text-text-primary focus:border-border-heavy focus:outline-none"
+                className="m-4 min-h-0 flex-1 resize-none rounded-xl border border-border-light bg-surface-secondary p-3 font-mono text-sm leading-relaxed text-text-primary focus:border-border-heavy focus:outline-none"
               />
             </div>
           </div>,
