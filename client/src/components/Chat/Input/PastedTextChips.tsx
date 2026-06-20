@@ -9,7 +9,7 @@ import { X } from 'lucide-react';
  * pas envoye. A l'envoi, le contenu est fusionne au message (cf. ChatForm).
  */
 
-export type PastedBlock = { id: string; text: string };
+export type PastedBlock = { id: string; label: number; text: string };
 
 const preview = (t: string) => (t.length > 220 ? t.slice(0, 220) : t);
 const sizeKo = (t: string) => {
@@ -65,7 +65,7 @@ export default function PastedTextChips({
               {preview(b.text)}
             </span>
             <span className="mt-1 inline-block w-fit rounded-md bg-surface-tertiary px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-text-secondary">
-              COLLE
+              COLLÉ {b.label}
             </span>
           </button>
           <button
@@ -91,10 +91,12 @@ export default function PastedTextChips({
             >
               <div className="flex items-start justify-between gap-4 border-b border-border-light px-5 py-4">
                 <div className="min-w-0">
-                  <h3 className="text-lg font-semibold text-text-primary">Contenu colle</h3>
+                  <h3 className="text-lg font-semibold text-text-primary">
+                    Contenu collé · COLLÉ {open.label}
+                  </h3>
                   <p className="mt-0.5 truncate text-xs text-text-secondary">
                     {sizeKo(open.text)} Ko · {open.text.split('\n').length} lignes · Le formatage peut
-                    etre different de la source
+                    être différent de la source
                   </p>
                 </div>
                 <button

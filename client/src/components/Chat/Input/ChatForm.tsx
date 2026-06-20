@@ -22,7 +22,7 @@ import {
   useFocusChatEffect,
 } from '~/hooks';
 import PendingManualSkillsChips from './PendingManualSkillsChips';
-import { cn, getModelSpec, removeFocusRings } from '~/utils';
+import { cn, getModelSpec, removeFocusRings, insertTextAtCursor, forceResize } from '~/utils';
 import { useGetStartupConfig } from '~/data-provider';
 import { mainTextareaId, BadgeItem } from '~/common';
 import AttachFileChat from './Files/AttachFileChat';
@@ -45,6 +45,8 @@ import store from '~/store';
 /** Au-dela de ce seuil, un texte colle devient une vignette au lieu de remplir le champ. */
 const PASTE_CHIP_MIN_CHARS = 1200;
 const PASTE_CHIP_MIN_LINES = 10;
+/** Repere insere dans le texte, ancre le contenu colle a un endroit precis du message. */
+const pasteToken = (label: number) => `[COLLÉ ${label}]`;
 
 interface ChatFormProps {
   index: number;
@@ -83,6 +85,7 @@ const ChatForm = memo(function ChatForm({
   const [isTextAreaFocused, setIsTextAreaFocused] = useState(false);
   const [backupBadges, setBackupBadges] = useState<Pick<BadgeItem, 'id'>[]>([]);
   const [pastedBlocks, setPastedBlocks] = useState<PastedBlock[]>([]);
+  const pasteCounter = useRef(0);
 
   const SpeechToText = useRecoilValue(store.speechToText);
   /* Micro (dictee vocale) masque pour l'instant : sans STT configure, le defaut
@@ -210,7 +213,16 @@ const ChatForm = memo(function ChatForm({
         (text.length >= PASTE_CHIP_MIN_CHARS || lineCount >= PASTE_CHIP_MIN_LINES)
       ) {
         e.preventDefault();
-        setPastedBlocks((prev) => [...prev, { id: `${Date.now()}-${prev.length}`, text }]);
+        const label = (pasteCounter.current += 1);
+        setPastedBlocks((prev) => [...prev, { id: `${Date.now()}-${label}`, label, text }]);
+        // Insere le repere [COLLÉ n] a l'endroit du curseur (execCommand declenche
+        // l'event input -> le form et la hauteur du champ se mettent a jour).
+        const ta = textAreaRef.current;
+        if (ta) {
+          const before = ta.value.slice(0, ta.selectionStart ?? ta.value.length);
+          const lead = before && !/\s$/.test(before) ? ' ' : '';
+          insertTextAtCursor(ta, `${lead}${pasteToken(label)} `);
+        }
         return;
       }
       handlePaste(e);
@@ -231,15 +243,49 @@ const ChatForm = memo(function ChatForm({
       if (!typed.trim() && pastedBlocks.length === 0) {
         return;
       }
+      // Chaque repere [COLLÉ n] present dans le texte est remplace par le contenu colle
+      // correspondant (ancre a sa place). Un contenu dont le repere a ete supprime est
+      // ajoute a la fin, pour ne rien perdre.
       let text = typed;
-      if (pastedBlocks.length > 0) {
-        const joined = pastedBlocks.map((b) => b.text).join('\n\n');
-        text = typed.trim() ? `${typed}\n\n${joined}` : joined;
+      const appended: string[] = [];
+      pastedBlocks.forEach((b) => {
+        const token = pasteToken(b.label);
+        if (text.includes(token)) {
+          text = text.split(token).join(`\n\n${b.text}\n\n`);
+        } else {
+          appended.push(b.text);
+        }
+      });
+      if (appended.length > 0) {
+        const joined = appended.join('\n\n');
+        text = text.trim() ? `${text}\n\n${joined}` : joined;
       }
+      text = text.replace(/\n{3,}/g, '\n\n').trim();
       setPastedBlocks([]);
+      pasteCounter.current = 0;
       submitMessage({ text });
     },
     [isSubmitting, methods, pastedBlocks, submitMessage],
+  );
+
+  // Retrait d'une vignette : on enleve aussi son repere [COLLÉ n] du texte tape.
+  const handleBlocksChange = useCallback(
+    (next: PastedBlock[]) => {
+      const removed = pastedBlocks.filter((p) => !next.some((n) => n.id === p.id));
+      if (removed.length > 0) {
+        let text = methods.getValues('text') ?? '';
+        removed.forEach((r) => {
+          text = text.split(` ${pasteToken(r.label)}`).join('');
+          text = text.split(pasteToken(r.label)).join('');
+        });
+        methods.setValue('text', text, { shouldValidate: true });
+        if (textAreaRef.current) {
+          forceResize(textAreaRef.current);
+        }
+      }
+      setPastedBlocks(next);
+    },
+    [pastedBlocks, methods],
   );
 
   const { ref, ...registerProps } = methods.register('text', {
@@ -355,7 +401,7 @@ const ChatForm = memo(function ChatForm({
               setFiles={setFiles}
               setFilesLoading={setFilesLoading}
             />
-            <PastedTextChips blocks={pastedBlocks} onChange={setPastedBlocks} />
+            <PastedTextChips blocks={pastedBlocks} onChange={handleBlocksChange} />
             {endpoint && (
               <div className={cn('flex', isRTL ? 'flex-row-reverse' : 'flex-row')}>
                 <div
