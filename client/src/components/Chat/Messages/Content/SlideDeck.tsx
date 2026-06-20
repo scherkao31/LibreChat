@@ -1,10 +1,11 @@
 import { memo, useMemo, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
-import { Maximize2, Download, FileDown, Pencil, Check } from 'lucide-react';
+import { Maximize2, Download, FileDown, Pencil, Check, ImageDown } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { dataService } from 'librechat-data-provider';
 import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
+import { downloadDeckImages } from '~/utils/deckImages';
 
 /**
  * SlideDeck — widget inline pour les presentations HTML (bloc `lancya_deck`).
@@ -170,6 +171,7 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [imgLoading, setImgLoading] = useState(false);
   const { messageId, conversationId, partIndex } = useMessageContext();
   const { showToast } = useToastContext();
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -326,6 +328,22 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
     }
   }, [cleanEditedHtml, showToast]);
 
+  // Export d'un PNG par slide (1280x720), regroupes en ZIP.
+  const downloadImages = useCallback(async () => {
+    const clean = cleanEditedHtml();
+    if (!clean) {
+      return;
+    }
+    setImgLoading(true);
+    try {
+      await downloadDeckImages(clean, 1280, 720, 'slides-images.zip');
+    } catch {
+      showToast?.({ message: "L'export en images n'est pas disponible pour le moment.", status: 'error' });
+    } finally {
+      setImgLoading(false);
+    }
+  }, [cleanEditedHtml, showToast]);
+
   if (!ready) {
     return (
       <div className="not-prose my-3 flex aspect-video w-full items-center justify-center rounded-2xl border border-border-medium bg-surface-secondary text-sm text-text-secondary shadow-sm">
@@ -402,6 +420,21 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
           >
             <FileDown size={14} />
             {pdfLoading ? 'PDF...' : 'PDF'}
+          </button>
+          <button
+            type="button"
+            onClick={downloadImages}
+            disabled={imgLoading}
+            title="Un PNG par slide, dans un ZIP"
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
+              'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+              imgLoading && 'cursor-not-allowed opacity-50',
+            )}
+          >
+            <ImageDown size={14} />
+            {imgLoading ? 'Images...' : 'Images'}
           </button>
           <button
             type="button"

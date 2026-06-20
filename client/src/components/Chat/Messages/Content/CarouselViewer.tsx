@@ -15,11 +15,13 @@ import {
   Bookmark,
   ThumbsUp,
   Repeat2,
+  ImageDown,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { dataService } from 'librechat-data-provider';
 import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
+import { downloadDeckImages } from '~/utils/deckImages';
 
 /**
  * CarouselViewer — widget inline pour un CARROUSEL LinkedIn / Instagram (bloc
@@ -182,6 +184,7 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [imgLoading, setImgLoading] = useState(false);
   const [platform, setPlatform] = useState<'instagram' | 'linkedin'>('instagram');
   const [caption, setCaption] = useState('');
   const [captionCopied, setCaptionCopied] = useState(false);
@@ -345,6 +348,22 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
     }
   }, [caption]);
 
+  // Export d'un PNG par carte (1080x1350), regroupes en ZIP (pour Instagram).
+  const downloadImages = useCallback(async () => {
+    const clean = cleanEditedHtml();
+    if (!clean) {
+      return;
+    }
+    setImgLoading(true);
+    try {
+      await downloadDeckImages(clean, 1080, 1350, 'carrousel-images.zip');
+    } catch {
+      showToast?.({ message: "L'export en images n'est pas disponible pour le moment.", status: 'error' });
+    } finally {
+      setImgLoading(false);
+    }
+  }, [cleanEditedHtml, showToast]);
+
   if (!ready) {
     return (
       <div className="not-prose my-3 flex aspect-[4/5] w-full max-w-xs items-center justify-center rounded-2xl border border-border-medium bg-surface-secondary text-sm text-text-secondary shadow-sm">
@@ -507,6 +526,21 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
         >
           <FileDown size={14} />
           {pdfLoading ? 'PDF...' : 'PDF'}
+        </button>
+        <button
+          type="button"
+          onClick={downloadImages}
+          disabled={imgLoading}
+          title="Un PNG par carte (pour Instagram), dans un ZIP"
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
+            'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+            imgLoading && 'cursor-not-allowed opacity-50',
+          )}
+        >
+          <ImageDown size={14} />
+          {imgLoading ? 'Images...' : 'Images'}
         </button>
         <button
           type="button"
