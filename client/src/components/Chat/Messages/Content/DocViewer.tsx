@@ -5,6 +5,7 @@ import { useToastContext } from '@librechat/client';
 import { dataService } from 'librechat-data-provider';
 import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
+import DeckAnnotate from '~/components/Chat/Messages/Content/DeckAnnotate';
 
 /**
  * DocViewer — widget inline pour un DOCUMENT interactif (bloc `lancya_doc`) :
@@ -249,14 +250,17 @@ const DocViewer = memo(function DocViewer({ raw }: { raw: string }) {
           editing ? 'border-border-heavy ring-2 ring-border-heavy' : 'border-border-medium',
         )}
       >
-        <iframe
-          ref={iframeRef}
-          title="Document"
-          srcDoc={srcDoc}
-          onLoad={handleLoad}
-          sandbox="allow-scripts allow-same-origin allow-popups"
-          className="block h-[620px] w-full border-0 bg-white"
-        />
+        <div className="relative">
+          <iframe
+            ref={iframeRef}
+            title="Document"
+            srcDoc={srcDoc}
+            onLoad={handleLoad}
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            className="block h-[620px] w-full border-0 bg-white"
+          />
+          <DeckAnnotate iframeRef={iframeRef} kind="ce document" />
+        </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border-light px-3 py-2">
           {palette.length > 0 && (
             <div className="mr-auto flex items-center gap-2">

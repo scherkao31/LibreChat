@@ -7,6 +7,7 @@ import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
 import { buildPerSlideHtmls, filterToSlideHtml, downloadImagesFromHtmls } from '~/utils/deckImages';
 import ExportMenu from '~/components/Chat/Messages/Content/ExportMenu';
+import DeckAnnotate from '~/components/Chat/Messages/Content/DeckAnnotate';
 import { useActiveDeckSlide } from '~/components/Chat/Messages/Content/useActiveDeckSlide';
 
 /**
@@ -375,14 +376,17 @@ const SlideDeck = memo(function SlideDeck({ raw }: { raw: string }) {
           editing ? 'border-border-heavy ring-2 ring-border-heavy' : 'border-border-medium',
         )}
       >
-        <iframe
-          ref={iframeRef}
-          title="Presentation"
-          srcDoc={srcDoc}
-          onLoad={handleLoad}
-          sandbox="allow-scripts allow-same-origin allow-popups"
-          className="block aspect-video w-full border-0 bg-white"
-        />
+        <div className="relative">
+          <iframe
+            ref={iframeRef}
+            title="Presentation"
+            srcDoc={srcDoc}
+            onLoad={handleLoad}
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            className="block aspect-video w-full border-0 bg-white"
+          />
+          <DeckAnnotate iframeRef={iframeRef} kind="cette presentation" />
+        </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border-light px-3 py-2">
           {/* Couleurs principales (Phase 2) */}
           {palette.length > 0 && (

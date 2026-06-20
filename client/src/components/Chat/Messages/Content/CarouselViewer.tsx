@@ -23,6 +23,7 @@ import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
 import { buildPerSlideHtmls, filterToSlideHtml, downloadImagesFromHtmls } from '~/utils/deckImages';
 import ExportMenu from '~/components/Chat/Messages/Content/ExportMenu';
+import DeckAnnotate from '~/components/Chat/Messages/Content/DeckAnnotate';
 import { useActiveDeckSlide } from '~/components/Chat/Messages/Content/useActiveDeckSlide';
 
 /**
@@ -435,14 +436,17 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
           <MoreHorizontal size={18} className="shrink-0 text-text-secondary" />
         </div>
 
-        <iframe
-          ref={iframeRef}
-          title="Carrousel"
-          srcDoc={srcDoc}
-          onLoad={handleLoad}
-          sandbox="allow-scripts allow-same-origin allow-popups"
-          className="block aspect-[4/5] w-full border-0 bg-white"
-        />
+        <div className="relative">
+          <iframe
+            ref={iframeRef}
+            title="Carrousel"
+            srcDoc={srcDoc}
+            onLoad={handleLoad}
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            className="block aspect-[4/5] w-full border-0 bg-white"
+          />
+          <DeckAnnotate iframeRef={iframeRef} kind="ce carrousel" />
+        </div>
 
         <div className="flex items-center gap-4 px-3 py-2.5 text-text-secondary">
           {platform === 'instagram' ? (
