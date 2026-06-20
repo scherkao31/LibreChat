@@ -8,6 +8,7 @@ import { cn } from '~/utils';
 import { buildPerSlideHtmls, downloadImagesFromHtmls } from '~/utils/deckImages';
 import ExportMenu from '~/components/Chat/Messages/Content/ExportMenu';
 import DeckAnnotate from '~/components/Chat/Messages/Content/DeckAnnotate';
+import { CHART_RENDER_SCRIPT } from '~/components/Chat/Messages/Content/chartRenderer';
 
 /**
  * VisualViewer — widget inline pour un VISUEL unique (un seul canvas) : graphique
@@ -120,14 +121,15 @@ function looksComplete(raw: string): boolean {
   return t.includes('</body>') || t.includes('</html>');
 }
 
-function buildSrcDoc(html: string, w: number, h: number): string {
+function buildSrcDoc(html: string, w: number, h: number, chart: boolean): string {
   let out = html;
   out = out.includes('</head>')
     ? out.replace('</head>', `${injectStyle(w, h)}</head>`)
     : `${injectStyle(w, h)}${out}`;
-  out = out.includes('</body>')
-    ? out.replace('</body>', `${injectScript(w, h)}</body>`)
-    : `${out}${injectScript(w, h)}`;
+  // Le renderer de graphiques tourne APRES le script d'echelle (dessine le SVG depuis
+  // les donnees data-spec). Injecte uniquement pour les charts.
+  const tail = injectScript(w, h) + (chart ? CHART_RENDER_SCRIPT : '');
+  out = out.includes('</body>') ? out.replace('</body>', `${tail}</body>`) : `${out}${tail}`;
   return out;
 }
 
@@ -148,7 +150,8 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
   const ready = looksComplete(raw);
   const { w, h } = useMemo(() => parseCanvas(raw, variant.w, variant.h), [raw, variant.w, variant.h]);
   const portrait = h > w;
-  const srcDoc = useMemo(() => (ready ? buildSrcDoc(raw, w, h) : ''), [ready, raw, w, h]);
+  const isChart = variant.tag === 'lancya_chart';
+  const srcDoc = useMemo(() => (ready ? buildSrcDoc(raw, w, h, isChart) : ''), [ready, raw, w, h, isChart]);
 
   const palette = useMemo(() => parseRootColors(raw), [raw]);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -166,14 +169,23 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
 
   const doc = () => iframeRef.current?.contentDocument ?? null;
 
-  const cleanEditedHtml = useCallback((): string | null => {
+  // emptyCharts=true (PERSISTANCE) : on ne garde QUE les donnees (data-spec) du
+  // graphique, pas le SVG genere -> message leger, le modele relit des donnees claires.
+  // emptyCharts=false (EXPORT PDF/PNG) : on GARDE le SVG genere, car Gotenberg n'execute
+  // pas notre renderer ; il imprime le SVG deja present dans le DOM vivant.
+  const extractHtml = useCallback((emptyCharts: boolean): string | null => {
     const d = doc();
     if (!d) {
       return null;
     }
     const clone = d.documentElement.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll('#ld-style, #ld-script').forEach((el) => el.remove());
+    clone.querySelectorAll('#ld-style, #ld-script, #ld-chart').forEach((el) => el.remove());
     clone.querySelectorAll('.slide').forEach((s) => (s as HTMLElement).removeAttribute('contenteditable'));
+    if (emptyCharts) {
+      clone.querySelectorAll('.lancya-chart').forEach((el) => {
+        el.innerHTML = '';
+      });
+    }
     return `<!DOCTYPE html>\n${clone.outerHTML}`;
   }, []);
 
@@ -181,7 +193,7 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
     if (!messageId || !conversationId || partIndex == null) {
       return;
     }
-    const html = cleanEditedHtml();
+    const html = extractHtml(true);
     if (!html) {
       return;
     }
@@ -189,7 +201,7 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
     void dataService
       .updateMessageContent({ conversationId, messageId, index: partIndex, text })
       .catch(() => undefined);
-  }, [messageId, conversationId, partIndex, cleanEditedHtml, variant.tag]);
+  }, [messageId, conversationId, partIndex, extractHtml, variant.tag]);
 
   const schedulePersist = useCallback(() => {
     if (persistTimer.current) {
@@ -264,7 +276,7 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
   }, [srcDoc, variant.file]);
 
   const downloadPdf = useCallback(async () => {
-    const clean = cleanEditedHtml();
+    const clean = extractHtml(false);
     if (!clean) {
       return;
     }
@@ -289,10 +301,10 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
     } finally {
       setPdfLoading(false);
     }
-  }, [cleanEditedHtml, w, h, variant.file, showToast]);
+  }, [extractHtml, w, h, variant.file, showToast]);
 
   const downloadImage = useCallback(async () => {
-    const clean = cleanEditedHtml();
+    const clean = extractHtml(false);
     if (!clean) {
       return;
     }
@@ -305,7 +317,7 @@ const VisualViewer = memo(function VisualViewer({ raw, tag }: { raw: string; tag
     } finally {
       setImgLoading(false);
     }
-  }, [cleanEditedHtml, w, h, variant.file, showToast]);
+  }, [extractHtml, w, h, variant.file, showToast]);
 
   if (!ready) {
     return (
