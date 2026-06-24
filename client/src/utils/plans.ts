@@ -17,6 +17,14 @@ export const PREMIUM_PAYMENT_LINK = 'https://buy.stripe.com/4gM6oHfVncj297vgWo1g
 /** Adresse de contact pour les changements de forfait (rétrogradation / annulation). */
 export const BILLING_CONTACT_EMAIL = 'contact@lancya.ch';
 
+/**
+ * Lien du portail client Stripe (self-serve : changer de formule, mettre à jour la carte,
+ * résilier à tout moment). À récupérer dans Stripe : Paramètres > Portail client > activer,
+ * puis copier le lien de connexion (https://billing.stripe.com/p/login/...). Tant qu'il est
+ * vide, le bouton "Gérer mon abonnement" retombe sur l'email de contact.
+ */
+export const BILLING_PORTAL_LINK = '';
+
 export const PLAN_LABEL: Record<PlanKey, string> = {
   free: 'Gratuit',
   pro: 'Pro',

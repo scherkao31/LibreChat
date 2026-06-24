@@ -3,6 +3,7 @@ import Cookies from 'js-cookie';
 import { useRecoilState, useRecoilValue } from 'recoil';
 import { Dropdown, Spinner, ThemeContext } from '@librechat/client';
 import ArchivedChats from './ArchivedChats';
+import GreetingName from './GreetingName';
 import ToggleSwitch from '../ToggleSwitch';
 import { useLocalize } from '~/hooks';
 import store from '~/store';
@@ -207,6 +208,9 @@ function General() {
       ))}
       <div className="pb-3">
         <ArchivedChats />
+      </div>
+      <div className="border-t border-border-medium pt-3">
+        <GreetingName />
       </div>
     </div>
   );

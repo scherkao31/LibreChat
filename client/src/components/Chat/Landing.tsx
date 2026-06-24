@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import { useRecoilValue } from 'recoil';
 import { easings } from '@react-spring/web';
 import { EModelEndpoint } from 'librechat-data-provider';
 import { BirthdayIcon, TooltipAnchor, SplitText } from '@librechat/client';
@@ -14,6 +15,7 @@ import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/
 import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
 import { useLocalize, useAuthContext } from '~/hooks';
+import store from '~/store';
 
 const containerClassName =
   'shadow-stroke relative flex h-full items-center justify-center rounded-full bg-white dark:bg-presentation dark:text-white text-black dark:after:shadow-none ';
@@ -42,6 +44,13 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const { user } = useAuthContext();
   const localize = useLocalize();
+  // Nom affiche dans l'accueil : reglage utilisateur (General). Vide => nom du compte ;
+  // masque => chaine vide (pas de nom dans le message de bienvenue).
+  const greetingNameOverride = useRecoilValue(store.greetingName);
+  const showGreetingName = useRecoilValue(store.showGreetingName);
+  const displayName = showGreetingName
+    ? ((greetingNameOverride || '').trim() || user?.name || '')
+    : '';
 
   const [textHasMultipleLines, setTextHasMultipleLines] = useState(false);
   const [lineCount, setLineCount] = useState(1);
@@ -92,9 +101,13 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {
       const customWelcome = startupConfig.interface.customWelcome;
-      // Replace {{user.name}} with actual user name if available
-      if (user?.name && customWelcome.includes('{{user.name}}')) {
-        return customWelcome.replace(/{{user.name}}/g, user.name);
+      // Remplace {{user.name}} par le nom affiche choisi ; s'il est masque/vide, on
+      // retire proprement le placeholder (et la virgule qui le precede).
+      if (customWelcome.includes('{{user.name}}')) {
+        if (displayName) {
+          return customWelcome.replace(/{{user.name}}/g, displayName);
+        }
+        return customWelcome.replace(/[,\s]*{{user.name}}/g, '');
       }
       return customWelcome;
     }
@@ -124,7 +137,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     else {
       return localize('com_ui_good_evening');
     }
-  }, [localize, startupConfig?.interface?.customWelcome, user?.name]);
+  }, [localize, startupConfig?.interface?.customWelcome, displayName]);
 
   const handleLineCountChange = useCallback((count: number) => {
     setTextHasMultipleLines(count > 1);
@@ -160,7 +173,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const greetingText =
     typeof startupConfig?.interface?.customWelcome === 'string'
       ? getGreeting()
-      : getGreeting() + (user?.name ? ', ' + user.name : '');
+      : getGreeting() + (displayName ? ', ' + displayName : '');
 
   return (
     <div

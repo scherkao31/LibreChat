@@ -28,6 +28,11 @@ const localStorageAtoms = {
   keepScreenAwake: atomWithLocalStorage('keepScreenAwake', true),
   newChatSwitchToHistory: atomWithLocalStorage('newChatSwitchToHistory', true),
 
+  // Personnalisation de l'accueil : nom affiche dans le message de bienvenue.
+  // greetingName vide => on retombe sur le nom du compte ; showGreetingName=false => masque.
+  greetingName: atomWithLocalStorage('greetingName', ''),
+  showGreetingName: atomWithLocalStorage('showGreetingName', true),
+
   // Chat settings
   enterToSend: atomWithLocalStorage('enterToSend', true),
   maximizeChatSpace: atomWithLocalStorage('maximizeChatSpace', false),
