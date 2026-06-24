@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { SettingsTabValues } from 'librechat-data-provider';
-import { MessageSquare, Command, DollarSign, Info } from 'lucide-react';
+import { MessageSquare, Command, CreditCard, Info } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import {
   GearIcon,
@@ -120,7 +120,7 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
       ? [
           {
             value: SettingsTabValues.BALANCE,
-            icon: <DollarSign size={18} />,
+            icon: <CreditCard size={18} />,
             label: 'com_nav_setting_balance' as TranslationKeys,
           },
         ]
