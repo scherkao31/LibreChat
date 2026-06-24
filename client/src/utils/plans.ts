@@ -23,7 +23,7 @@ export const BILLING_CONTACT_EMAIL = 'contact@lancya.ch';
  * puis copier le lien de connexion (https://billing.stripe.com/p/login/...). Tant qu'il est
  * vide, le bouton "Gérer mon abonnement" retombe sur l'email de contact.
  */
-export const BILLING_PORTAL_LINK = '';
+export const BILLING_PORTAL_LINK = 'https://billing.stripe.com/p/login/4gM6oHfVncj297vgWo1gs00';
 
 export const PLAN_LABEL: Record<PlanKey, string> = {
   free: 'Gratuit',
