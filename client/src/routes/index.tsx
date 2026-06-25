@@ -18,6 +18,7 @@ import StartupLayout from './Layouts/Startup';
 import LoginLayout from './Layouts/Login';
 import dashboardRoutes from './Dashboard';
 import ShareRoute from './ShareRoute';
+import OuTravailleVotreIA from './OuTravailleVotreIA';
 import ChatRoute from './ChatRoute';
 import Search from './Search';
 import Root from './Root';
@@ -59,6 +60,12 @@ export const router = createBrowserRouter(
     {
       path: 'share/:shareId',
       element: <ShareRoute />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      // Page marketing publique (sans login) : "ou travaille votre IA ?".
+      path: 'ou-travaille-votre-ia',
+      element: <OuTravailleVotreIA />,
       errorElement: <RouteErrorBoundary />,
     },
     {
