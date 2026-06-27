@@ -15,6 +15,7 @@ import {
   useLocalize,
 } from '~/hooks';
 import ConversationStarters from './Input/ConversationStarters';
+import LancyaStarters from './Input/LancyaStarters';
 import { useGetMessagesByConvoId } from '~/data-provider';
 import MessagesView from './Messages/MessagesView';
 import Presentation from './Presentation';
@@ -120,7 +121,14 @@ function ChatView({ index = 0, project }: { index?: number; project?: TChatProje
                   >
                     {isProjectLandingPage && project && <ProjectLandingChip project={project} />}
                     <ChatForm index={index} placeholder={chatFormPlaceholder} />
-                    {isLandingPage ? <ConversationStarters /> : <Footer />}
+                    {isLandingPage ? (
+                      <>
+                        <ConversationStarters />
+                        <LancyaStarters />
+                      </>
+                    ) : (
+                      <Footer />
+                    )}
                   </div>
                 </div>
                 {isLandingPage && <Footer />}
