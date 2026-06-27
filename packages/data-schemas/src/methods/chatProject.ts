@@ -5,6 +5,7 @@ import { buildRetentionVisibilityFilter } from '~/utils/retention';
 import { escapeRegExp } from '~/utils/string';
 import type {
   IChatProject,
+  IChatProjectBrief,
   IChatProjectDocument,
   IChatProjectFiche,
   IConversation,
@@ -21,6 +22,7 @@ export type CreateChatProjectInput = {
 export type UpdateChatProjectInput = Partial<CreateChatProjectInput> & {
   fiche?: IChatProjectFiche;
   fileIds?: string[];
+  briefs?: IChatProjectBrief[];
 };
 
 const FICHE_SECTIONS = new Set(['decision', 'open', 'deadline', 'action', 'info']);
@@ -42,6 +44,18 @@ function sanitizeFiche(fiche: IChatProjectFiche): IChatProjectFiche {
       })),
     updatedAt: new Date(),
   };
+}
+
+/** Assainit l'historique des points (cap a 50, longueurs). Le plus recent reste en tete. */
+function sanitizeBriefs(briefs: IChatProjectBrief[]): IChatProjectBrief[] {
+  const list = Array.isArray(briefs) ? briefs.slice(0, 50) : [];
+  return list
+    .filter((brief) => brief && typeof brief.text === 'string' && brief.text.trim())
+    .map((brief) => ({
+      id: String(brief.id ?? ''),
+      text: String(brief.text).slice(0, 20000),
+      createdAt: brief.createdAt ?? new Date(),
+    }));
 }
 
 export type ListChatProjectsOptions = {
@@ -367,7 +381,9 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     }
 
     const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
-    const update: Partial<Pick<IChatProject, 'name' | 'description' | 'fiche' | 'fileIds'>> = {};
+    const update: Partial<
+      Pick<IChatProject, 'name' | 'description' | 'fiche' | 'fileIds' | 'briefs'>
+    > = {};
     if (typeof input.name === 'string') {
       const name = input.name.trim().slice(0, 100);
       if (!name) {
@@ -385,6 +401,9 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
       update.fileIds = Array.isArray(input.fileIds)
         ? input.fileIds.filter((id): id is string => typeof id === 'string').slice(0, 500)
         : [];
+    }
+    if (input.briefs !== undefined) {
+      update.briefs = sanitizeBriefs(input.briefs);
     }
 
     return await ChatProject.findOneAndUpdate(

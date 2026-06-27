@@ -23,6 +23,14 @@ export interface IChatProjectFiche {
   updatedAt?: Date | null;
 }
 
+/** Un « point » sauvegarde : debrief horodate de l'etat du dossier, garde dans l'historique. */
+export interface IChatProjectBrief {
+  /** Identifiant stable cote client. */
+  id: string;
+  text: string;
+  createdAt?: Date;
+}
+
 export interface IChatProject {
   _id?: Types.ObjectId;
   name: string;
@@ -33,6 +41,7 @@ export interface IChatProject {
   lastConversationId?: string | null;
   fiche?: IChatProjectFiche;
   fileIds?: string[];
+  briefs?: IChatProjectBrief[];
   createdAt?: Date;
   updatedAt?: Date;
   tenantId?: string;

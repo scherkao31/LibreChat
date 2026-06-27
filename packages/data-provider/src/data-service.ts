@@ -826,6 +826,11 @@ export function getProjectBrief(projectId: string): Promise<{ brief: string }> {
   return request.post(endpoints.projectBrief(projectId), {});
 }
 
+/** Sauvegarde un « point » dans l'historique du dossier ; renvoie le projet mis a jour. */
+export function saveProjectBrief(projectId: string, text: string): Promise<t.TChatProject> {
+  return request.post(endpoints.projectBriefs(projectId), { text });
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {

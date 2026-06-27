@@ -28,6 +28,16 @@ const ficheSchema = new Schema(
   { _id: false },
 );
 
+/** Un « point » sauvegarde : debrief horodate de l'etat du dossier. */
+const briefSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    text: { type: String, required: true, maxlength: 20000 },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectDocument>(
   {
     name: {
@@ -69,6 +79,11 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
     /** Documents du projet (file_id), partages par toutes ses conversations (RAG). */
     fileIds: {
       type: [String],
+      default: [],
+    },
+    /** Historique des « points » (debriefs horodates), le plus recent en premier. */
+    briefs: {
+      type: [briefSchema],
       default: [],
     },
     tenantId: {

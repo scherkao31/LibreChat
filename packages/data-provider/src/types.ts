@@ -307,6 +307,13 @@ export type TChatProjectFiche = {
   updatedAt?: string | null;
 };
 
+/** Un « point » sauvegarde : debrief horodate de l'etat du dossier. */
+export type TChatProjectBrief = {
+  id: string;
+  text: string;
+  createdAt?: string;
+};
+
 export type TChatProject = {
   _id: string;
   name: string;
@@ -317,6 +324,7 @@ export type TChatProject = {
   lastConversationId?: string | null;
   fiche?: TChatProjectFiche;
   fileIds?: string[];
+  briefs?: TChatProjectBrief[];
   createdAt: string;
   updatedAt: string;
 };

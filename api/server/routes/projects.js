@@ -271,7 +271,15 @@ async function buildProjectBrief({ project, files }) {
     .join('\n');
 
   const system =
-    "Tu produis le DEBRIEF d'un dossier de travail pour un professionnel suisse. A partir des elements fournis (fiche du dossier, liste des documents), redige un point clair et bien structure sur l'etat du dossier : ou en est-on, ce qui est decide, les echeances, les points ouverts, les prochaines actions. Format markdown : un court paragraphe de synthese en tete, puis des sections avec des titres (##) et des listes. Termine par une section 'Prochaines actions' concrete. Reste factuel : appuie-toi UNIQUEMENT sur les elements fournis, n'invente rien ; si un volet est vide, dis-le simplement. Cite les sources entre parentheses quand elles sont connues. Style : francais, naturel, professionnel. N'utilise JAMAIS de tiret cadratin ni demi-cadratin (utilise virgule, parentheses ou deux-points). Pas de tournures qui sentent l'IA.";
+    "Tu produis le DEBRIEF d'un dossier de travail pour un professionnel suisse, a partir des elements fournis (fiche du dossier, liste des documents). Objectif : un point clair sur l'etat du dossier (ou en est-on, ce qui est decide, les echeances, les points ouverts, les prochaines actions).\n\n" +
+    "MISE EN FORME (markdown soigne, c'est important pour la lisibilite) :\n" +
+    "- Commence par un court paragraphe de synthese (2 a 3 phrases), sans titre.\n" +
+    "- Ensuite, des sections avec des titres de niveau 2, par exemple : « ## Etat du dossier », « ## Decisions », « ## Echeances », « ## Points ouverts », « ## Prochaines actions ». N'inclus QUE les sections pertinentes.\n" +
+    "- Sous chaque titre, utilise des listes a puces (commence chaque ligne par « - »).\n" +
+    "- Mets en gras (**...**) les informations cles : dates, montants, noms, chiffres.\n" +
+    "- Cite la source entre parentheses quand elle est connue.\n\n" +
+    "FOND : reste strictement factuel, appuie-toi UNIQUEMENT sur les elements fournis, n'invente rien. Si un volet est vide, ne mets pas la section correspondante (ou dis brievement qu'il n'y a rien).\n\n" +
+    "STYLE : francais, naturel, professionnel. N'utilise JAMAIS de tiret cadratin (—) ni demi-cadratin (–) : a la place, virgule, parentheses ou deux-points. Pas de tournures qui sentent l'IA.";
   const user =
     `Dossier : ${project.name}\n` +
     (project.description ? `Description : ${project.description}\n` : '') +
@@ -368,6 +376,33 @@ router.post('/:projectId/brief', async (req, res) => {
   } catch (error) {
     logger.error('[projects] Error building brief', error);
     return res.status(500).json({ error: 'Error building brief' });
+  }
+});
+
+/**
+ * Sauvegarde un « point » dans l'historique du dossier (le plus recent en tete, cap a 30).
+ * Renvoie le projet mis a jour (avec briefs). Le texte vient du front (deja genere).
+ */
+router.post('/:projectId/briefs', async (req, res) => {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  const { projectId } = req.params;
+  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  if (!text) {
+    return res.status(400).json({ error: 'text is required' });
+  }
+  try {
+    const project = await db.getChatProject(userId, projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const previous = Array.isArray(project.briefs) ? project.briefs : [];
+    const brief = { id: `b-${Date.now()}`, text: text.slice(0, 20000), createdAt: new Date() };
+    const briefs = [brief, ...previous].slice(0, 30);
+    const updated = await db.updateChatProject(userId, projectId, { briefs });
+    return res.status(200).json(updated);
+  } catch (error) {
+    logger.error('[projects] Error saving brief', error);
+    return res.status(500).json({ error: 'Error saving brief' });
   }
 });
 

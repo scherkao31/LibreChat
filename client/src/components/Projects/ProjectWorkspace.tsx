@@ -13,7 +13,7 @@ import { useLocalize, useNewConvo } from '~/hooks';
 import { cn, clearMessagesCache } from '~/utils';
 import ProjectChatList from './ProjectChatList';
 import ProjectFiche from './ProjectFiche';
-import ProjectBriefButton from './ProjectBriefButton';
+import ProjectBriefs from './ProjectBriefs';
 import ProjectDocuments from './ProjectDocuments';
 import store from '~/store';
 
@@ -158,7 +158,7 @@ export default function ProjectWorkspace() {
 
         <ProjectFiche project={project} />
 
-        <ProjectBriefButton projectId={project._id} />
+        <ProjectBriefs project={project} />
 
         <ProjectDocuments project={project} />
 

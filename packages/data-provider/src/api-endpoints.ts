@@ -137,6 +137,8 @@ export const projectDocuments = (id: string) =>
   `${projectsRoot}/${encodeURIComponent(id)}/documents`;
 export const projectBrief = (id: string) =>
   `${projectsRoot}/${encodeURIComponent(id)}/brief`;
+export const projectBriefs = (id: string) =>
+  `${projectsRoot}/${encodeURIComponent(id)}/briefs`;
 
 export const projectConversation = (conversationId: string) =>
   `${projectsRoot}/conversations/${encodeURIComponent(conversationId)}`;
