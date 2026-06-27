@@ -67,6 +67,48 @@ function extractJson(text) {
 }
 
 /**
+ * Appel LLM Lancya, sur l'endpoint Infomaniak DEJA configure (INFOMANIAK_API_KEY + PRODUCT_ID).
+ * Renvoie le texte de la reponse, ou '' si non configure / echec. Ne jette jamais. Gere le
+ * modele raisonnant (Kimi) : assez de jetons, et repli sur reasoning_content si content est vide.
+ */
+async function callLancyaModel({ system, user, maxTokens = 2000, temperature = 0.3 }) {
+  const apiKey = process.env.INFOMANIAK_API_KEY;
+  const productId = process.env.PRODUCT_ID;
+  const model = process.env.FICHE_ANALYSIS_MODEL || 'moonshotai/Kimi-K2.6';
+  if (!apiKey || !productId) {
+    logger.warn('[projects] LLM : config absente (INFOMANIAK_API_KEY / PRODUCT_ID)');
+    return '';
+  }
+  const baseURL =
+    process.env.FICHE_ANALYSIS_BASE_URL || `https://api.infomaniak.com/2/ai/${productId}/openai/v1`;
+  try {
+    const resp = await fetch(`${baseURL.replace(/\/+$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        temperature,
+        max_tokens: maxTokens,
+      }),
+    });
+    if (!resp.ok) {
+      logger.warn(`[projects] LLM : statut ${resp.status}`);
+      return '';
+    }
+    const data = await resp.json();
+    const choice = data?.choices?.[0] ?? {};
+    return choice.message?.content || choice.message?.reasoning_content || '';
+  } catch (err) {
+    logger.warn(`[projects] LLM : appel echoue (${err.message})`);
+    return '';
+  }
+}
+
+/**
  * Recupere le TEXTE d'un document, comme le chat le fait : si le texte est deja stocke
  * (petits fichiers texte) on le prend, sinon on telecharge le fichier (S3/local...) et on
  * l'envoie a l'API RAG `/text` qui l'extrait (meme mecanisme que parseText). Renvoie '' si
@@ -191,6 +233,56 @@ async function analyzeDocumentToFiche({ req, project, file }) {
   return { summary: typeof parsed.summary === 'string' ? parsed.summary : '', items };
 }
 
+const SECTION_LABELS = {
+  decision: 'Decisions',
+  deadline: 'Echeances',
+  open: 'Points ouverts',
+  action: 'Prochaines actions',
+  info: 'Infos cles',
+};
+
+/**
+ * Produit un debrief (markdown) de l'etat du dossier, a partir de la fiche (etat valide par
+ * l'utilisateur) + des metadonnees du projet + de la liste des documents. Renvoie '' si echec.
+ * Le « point » a la demande : pas de planification, on s'appuie sur l'etat deja cure.
+ */
+async function buildProjectBrief({ project, files }) {
+  const fiche = project.fiche ?? {};
+  const items = Array.isArray(fiche.items) ? fiche.items : [];
+  const bySection = {};
+  for (const item of items) {
+    const sec = FICHE_SECTIONS.includes(item.section) ? item.section : 'info';
+    (bySection[sec] ||= []).push(item);
+  }
+  const ficheText = FICHE_SECTIONS.map((sec) => {
+    const list = bySection[sec];
+    if (!list || !list.length) {
+      return '';
+    }
+    const lines = list
+      .map((item) => `- ${item.text}${item.source ? ` (source : ${item.source})` : ''}`)
+      .join('\n');
+    return `${SECTION_LABELS[sec]} :\n${lines}`;
+  })
+    .filter(Boolean)
+    .join('\n\n');
+  const docNames = (Array.isArray(files) ? files : [])
+    .map((file) => `- ${file.filename}`)
+    .join('\n');
+
+  const system =
+    "Tu produis le DEBRIEF d'un dossier de travail pour un professionnel suisse. A partir des elements fournis (fiche du dossier, liste des documents), redige un point clair et bien structure sur l'etat du dossier : ou en est-on, ce qui est decide, les echeances, les points ouverts, les prochaines actions. Format markdown : un court paragraphe de synthese en tete, puis des sections avec des titres (##) et des listes. Termine par une section 'Prochaines actions' concrete. Reste factuel : appuie-toi UNIQUEMENT sur les elements fournis, n'invente rien ; si un volet est vide, dis-le simplement. Cite les sources entre parentheses quand elles sont connues. Style : francais, naturel, professionnel. N'utilise JAMAIS de tiret cadratin ni demi-cadratin (utilise virgule, parentheses ou deux-points). Pas de tournures qui sentent l'IA.";
+  const user =
+    `Dossier : ${project.name}\n` +
+    (project.description ? `Description : ${project.description}\n` : '') +
+    `\nDocuments du dossier :\n${docNames || '(aucun document)'}\n` +
+    `\nFiche du dossier (etat valide) :\n${fiche.summary ? `Resume : ${fiche.summary}\n` : ''}${
+      ficheText || '(fiche encore vide)'
+    }\n\nRedige le debrief complet du dossier.`;
+
+  return callLancyaModel({ system, user, maxTokens: 3000, temperature: 0.3 });
+}
+
 router.use(requireJwtAuth);
 
 router.get('/', handlers.listProjects);
@@ -247,6 +339,35 @@ router.post('/:projectId/documents', async (req, res) => {
   } catch (error) {
     logger.error('[projects] Error adding document', error);
     return res.status(500).json({ error: 'Error adding document' });
+  }
+});
+
+/**
+ * « Faire le point » : produit a la demande un debrief markdown de l'etat du dossier
+ * (fiche validee + documents). Renvoie { brief }. Best-effort cote modele : 502 si la
+ * generation echoue, pour que le front affiche un message clair.
+ */
+router.post('/:projectId/brief', async (req, res) => {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  const { projectId } = req.params;
+  try {
+    const project = await db.getChatProject(userId, projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const fileIds = Array.isArray(project.fileIds) ? project.fileIds : [];
+    let files = [];
+    if (fileIds.length > 0) {
+      files = await db.getFiles({ file_id: { $in: fileIds } }, null, { filename: 1, file_id: 1 });
+    }
+    const brief = await buildProjectBrief({ project, files });
+    if (!brief.trim()) {
+      return res.status(502).json({ error: 'brief generation failed' });
+    }
+    return res.status(200).json({ brief });
+  } catch (error) {
+    logger.error('[projects] Error building brief', error);
+    return res.status(500).json({ error: 'Error building brief' });
   }
 });
 

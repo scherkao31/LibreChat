@@ -821,6 +821,11 @@ export function addProjectDocument(projectId: string, fileId: string): Promise<t
   return request.post(endpoints.projectDocuments(projectId), { fileId });
 }
 
+/** « Faire le point » : produit a la demande un debrief markdown de l'etat du dossier. */
+export function getProjectBrief(projectId: string): Promise<{ brief: string }> {
+  return request.post(endpoints.projectBrief(projectId), {});
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {

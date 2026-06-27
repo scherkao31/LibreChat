@@ -135,6 +135,8 @@ export const projects = (params: q.ProjectListParams = {}) => {
 export const projectById = (id: string) => `${projectsRoot}/${encodeURIComponent(id)}`;
 export const projectDocuments = (id: string) =>
   `${projectsRoot}/${encodeURIComponent(id)}/documents`;
+export const projectBrief = (id: string) =>
+  `${projectsRoot}/${encodeURIComponent(id)}/brief`;
 
 export const projectConversation = (conversationId: string) =>
   `${projectsRoot}/conversations/${encodeURIComponent(conversationId)}`;
