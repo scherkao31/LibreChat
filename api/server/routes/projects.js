@@ -47,6 +47,7 @@ async function analyzeDocumentToFiche({ project, file }) {
   const productId = process.env.PRODUCT_ID;
   const model = process.env.FICHE_ANALYSIS_MODEL || 'moonshotai/Kimi-K2.6';
   if (!apiKey || !productId) {
+    logger.warn('[projects] analyse fiche : config absente (INFOMANIAK_API_KEY / PRODUCT_ID)');
     return null;
   }
   const baseURL =
@@ -54,6 +55,7 @@ async function analyzeDocumentToFiche({ project, file }) {
     `https://api.infomaniak.com/2/ai/${productId}/openai/v1`;
   const text = typeof file?.text === 'string' ? file.text : '';
   if (!text.trim()) {
+    logger.warn(`[projects] analyse fiche : pas de texte exploitable sur « ${file?.filename} »`);
     return null;
   }
   const docText = text.slice(0, 24000);
@@ -95,6 +97,7 @@ async function analyzeDocumentToFiche({ project, file }) {
 
   const parsed = extractJson(content);
   if (!parsed || !Array.isArray(parsed.items)) {
+    logger.warn('[projects] analyse fiche : reponse du modele non exploitable (JSON absent)');
     return null;
   }
   const stamp = Date.now();
@@ -108,6 +111,7 @@ async function analyzeDocumentToFiche({ project, file }) {
       source: file.filename,
       status: 'proposed',
     }));
+  logger.info(`[projects] analyse fiche : ${items.length} element(s) extrait(s) de « ${file.filename} »`);
   return { summary: typeof parsed.summary === 'string' ? parsed.summary : '', items };
 }
 
@@ -140,7 +144,13 @@ router.post('/:projectId/documents', async (req, res) => {
 
     let ficheUpdate;
     try {
-      const files = await db.getFiles({ file_id: fileId });
+      // IMPORTANT : getFiles exclut `text` par defaut (select { text: 0 }). On le demande
+      // explicitement, sinon le texte extrait du document est vide et l'analyse ne lit rien.
+      const files = await db.getFiles(
+        { file_id: fileId },
+        null,
+        { text: 1, filename: 1, file_id: 1, bytes: 1 },
+      );
       const file = Array.isArray(files) ? files[0] : files;
       if (file) {
         const analysis = await analyzeDocumentToFiche({ project, file });
