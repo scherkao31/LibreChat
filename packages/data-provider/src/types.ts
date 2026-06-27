@@ -329,6 +329,7 @@ export type TCreateChatProjectRequest = {
 export type TUpdateChatProjectRequest = Partial<TCreateChatProjectRequest> & {
   projectId: string;
   fiche?: TChatProjectFiche;
+  fileIds?: string[];
 };
 
 export type TDeleteChatProjectResponse = {

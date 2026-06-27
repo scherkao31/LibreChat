@@ -20,6 +20,7 @@ export type CreateChatProjectInput = {
 
 export type UpdateChatProjectInput = Partial<CreateChatProjectInput> & {
   fiche?: IChatProjectFiche;
+  fileIds?: string[];
 };
 
 const FICHE_SECTIONS = new Set(['decision', 'open', 'deadline', 'action', 'info']);
@@ -366,7 +367,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     }
 
     const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
-    const update: Partial<Pick<IChatProject, 'name' | 'description' | 'fiche'>> = {};
+    const update: Partial<Pick<IChatProject, 'name' | 'description' | 'fiche' | 'fileIds'>> = {};
     if (typeof input.name === 'string') {
       const name = input.name.trim().slice(0, 100);
       if (!name) {
@@ -379,6 +380,11 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     }
     if (input.fiche !== undefined) {
       update.fiche = sanitizeFiche(input.fiche);
+    }
+    if (input.fileIds !== undefined) {
+      update.fileIds = Array.isArray(input.fileIds)
+        ? input.fileIds.filter((id): id is string => typeof id === 'string').slice(0, 500)
+        : [];
     }
 
     return await ChatProject.findOneAndUpdate(
