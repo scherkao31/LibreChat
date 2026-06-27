@@ -4,6 +4,7 @@ import { useMediaQuery } from '@librechat/client';
 import { getConfigDefaults, PermissionTypes, Permissions } from 'librechat-data-provider';
 import ModelSelector from './Menus/Endpoints/ModelSelector';
 import { useGetStartupConfig } from '~/data-provider';
+import ProjectHeaderBadge from './ProjectHeaderBadge';
 import ExportAndShareMenu from './ExportAndShareMenu';
 import { OpenSidebar, PresetsMenu } from './Menus';
 import BookmarkMenu from './Menus/BookmarkMenu';
@@ -15,7 +16,7 @@ import store from '~/store';
 
 const defaultInterface = getConfigDefaults().interface;
 
-function Header() {
+function Header({ isLandingPage = false }: { isLandingPage?: boolean }) {
   const { data: startupConfig } = useGetStartupConfig();
   const navVisible = useRecoilValue(store.sidebarExpanded);
 
@@ -54,6 +55,10 @@ function Header() {
               )}
             >
               <ModelSelector startupConfig={startupConfig} />
+              {/* Etiquette du projet en haut, dans les vraies discussions. Sur la page d'accueil
+                  d'un projet, c'est ProjectLandingChip (au-dessus de la saisie) qui s'en charge,
+                  donc on l'evite ici pour ne pas doubler. */}
+              {!isLandingPage && <ProjectHeaderBadge />}
               {interfaceConfig.presets === true && interfaceConfig.modelSelect && <PresetsMenu />}
               {hasAccessToBookmarks === true && <BookmarkMenu />}
               {hasAccessToMultiConvo === true && <AddMultiConvo />}

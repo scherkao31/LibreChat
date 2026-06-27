@@ -283,7 +283,27 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
   /** Event-driven mode: only load tool definitions, not full instances */
   const loadTools = createToolLoader(signal, streamId, true);
   /** @type {Array<MongoFile>} */
-  const requestFiles = req.body.files ?? [];
+  const requestFiles = [...(req.body.files ?? [])];
+  // Ancrage projet : si la conversation est rattachee a un projet, ses documents sont rendus
+  // disponibles au modele (file_search), comme des pieces jointes, mais SANS vignette cote UI.
+  // Refait a chaque tour, donc un document ajoute en cours de route devient dispo. getChatProject
+  // est scope a l'utilisateur (pas de fuite inter-comptes). Best-effort : ne bloque jamais l'envoi.
+  if (endpointOption?.chatProjectId) {
+    try {
+      const project = await db.getChatProject(req.user?.id, endpointOption.chatProjectId);
+      const projectFileIds = Array.isArray(project?.fileIds) ? project.fileIds : [];
+      const known = new Set(requestFiles.map((file) => file.file_id));
+      const missingIds = projectFileIds.filter((id) => !known.has(id));
+      if (missingIds.length > 0) {
+        const projectFiles = await db.getFiles({ file_id: { $in: missingIds } });
+        if (Array.isArray(projectFiles) && projectFiles.length > 0) {
+          requestFiles.push(...projectFiles);
+        }
+      }
+    } catch (err) {
+      logger.warn(`[initializeClient] ancrage projet ignore : ${err.message}`);
+    }
+  }
   /** @type {string} */
   const conversationId = req.body.conversationId;
   /** @type {string | undefined} */
