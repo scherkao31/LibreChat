@@ -23,7 +23,7 @@ import type {
   TConversation,
   TEndpointsConfig,
 } from 'librechat-data-provider';
-import type { AssistantListItem } from '~/common';
+import type { AssistantListItem, ExtendedFile } from '~/common';
 import {
   updateLastSelectedModel,
   getLocalStorageItems,
@@ -290,6 +290,7 @@ const useNewConvo = (index = 0) => {
       buildDefault = true,
       keepAddedConvos = false,
       disableParams,
+      initialFiles,
     }: {
       template?: Partial<TConversation>;
       preset?: Partial<TPreset>;
@@ -298,6 +299,8 @@ const useNewConvo = (index = 0) => {
       disableFocus?: boolean;
       keepAddedConvos?: boolean;
       disableParams?: boolean;
+      /** Pieces jointes a pre-attacher a la nouvelle conversation (ex. documents d'un projet). */
+      initialFiles?: Map<string, ExtendedFile>;
     } = {}) {
       pauseGlobalAudio();
       if (!saveBadgesState) {
@@ -362,7 +365,10 @@ const useNewConvo = (index = 0) => {
             source: file.source as FileSources, // Ensure that the source is of type FileSources
           }));
 
-        setFiles(new Map());
+        // Conversation de projet : on pre-attache les documents du projet, exactement comme
+        // si l'utilisateur les avait joints a la main (meme flux). resendFiles (=true) les
+        // garde disponibles sur tous les tours suivants via getConvoFiles.
+        setFiles(initialFiles && initialFiles.size > 0 ? new Map(initialFiles) : new Map());
         localStorage.setItem(LocalStorageKeys.FILES_TO_DELETE, JSON.stringify({}));
 
         if (!saveDrafts && filesToDelete.length > 0) {

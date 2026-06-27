@@ -4,11 +4,11 @@ import { useRecoilValue } from 'recoil';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowUpDown, Check, Folder, Plus } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { QueryKeys } from 'librechat-data-provider';
-import type { ConversationListResponse } from 'librechat-data-provider';
+import { QueryKeys, EToolResources } from 'librechat-data-provider';
+import type { ConversationListResponse, TFile } from 'librechat-data-provider';
 import { Spinner, DropdownPopup } from '@librechat/client';
-import type { MenuItemProps, RenderProp } from '~/common';
-import { useConversationsInfiniteQuery, useProjectQuery } from '~/data-provider';
+import type { MenuItemProps, RenderProp, ExtendedFile } from '~/common';
+import { useConversationsInfiniteQuery, useProjectQuery, useGetFiles } from '~/data-provider';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { cn, clearMessagesCache } from '~/utils';
 import ProjectChatList from './ProjectChatList';
@@ -45,6 +45,39 @@ export default function ProjectWorkspace() {
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const { newConversation } = useNewConvo();
   const activeProjectId = project?._id;
+
+  // Documents du projet, mis en forme comme des pieces jointes deja televersees, pour les
+  // pre-attacher a une nouvelle conversation du projet (reutilise le flux d'attachement du
+  // chat ; le modele les lit via file_search, comme un fichier joint a la main).
+  const { data: allFiles } = useGetFiles<TFile[]>();
+  const projectFiles = useMemo(() => {
+    const map = new Map<string, ExtendedFile>();
+    const ids = project?.fileIds;
+    if (!Array.isArray(allFiles) || !ids?.length) {
+      return map;
+    }
+    const idSet = new Set(ids);
+    for (const f of allFiles) {
+      if (!idSet.has(f.file_id)) {
+        continue;
+      }
+      map.set(f.file_id, {
+        file_id: f.file_id,
+        filepath: f.filepath,
+        filename: f.filename,
+        type: f.type,
+        size: f.bytes ?? 0,
+        progress: 1,
+        source: f.source,
+        embedded: true,
+        attached: true,
+        tool_resource: EToolResources.file_search,
+        width: f.width,
+        height: f.height,
+      });
+    }
+    return map;
+  }, [allFiles, project?.fileIds]);
 
   const sortOptions = useMemo(
     () => [
@@ -108,8 +141,8 @@ export default function ProjectWorkspace() {
     }
     clearMessagesCache(queryClient, conversation?.conversationId);
     queryClient.invalidateQueries([QueryKeys.messages]);
-    newConversation({ template: { chatProjectId: activeProjectId } });
-  }, [activeProjectId, conversation?.conversationId, newConversation, queryClient]);
+    newConversation({ template: { chatProjectId: activeProjectId }, initialFiles: projectFiles });
+  }, [activeProjectId, conversation?.conversationId, newConversation, queryClient, projectFiles]);
 
   if (isProjectLoading) {
     return (
