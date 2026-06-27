@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Check, X, Sparkles } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Check, X, Sparkles, Loader2 } from 'lucide-react';
+import { useToastContext } from '@librechat/client';
+import { dataService, QueryKeys } from 'librechat-data-provider';
 import type {
   TChatProject,
   TChatProjectFicheItem,
@@ -27,10 +30,37 @@ const SECTIONS: { key: TChatProjectFicheSection; label: string }[] = [
 export default function ProjectFiche({ project }: { project: TChatProject }) {
   const projectId = project._id;
   const update = useUpdateProjectMutation();
+  const queryClient = useQueryClient();
+  const { showToast } = useToastContext();
   const stamp = project.fiche?.updatedAt ?? null;
 
   const [summary, setSummary] = useState(project.fiche?.summary ?? '');
   const [items, setItems] = useState<TChatProjectFicheItem[]>(project.fiche?.items ?? []);
+  const [debriefing, setDebriefing] = useState(false);
+
+  // « Mettre a jour » : l'IA relit la derniere discussion du projet et propose des elements
+  // pour la fiche (l'user valide ensuite). Le projet revient avec sa fiche maj -> re-seed.
+  const debrief = async () => {
+    if (debriefing) {
+      return;
+    }
+    setDebriefing(true);
+    try {
+      const { project: updated, added } = await dataService.debriefProjectFiche(projectId);
+      queryClient.setQueryData([QueryKeys.project, projectId], updated);
+      showToast({
+        message:
+          added > 0
+            ? `${added} élément${added > 1 ? 's' : ''} proposé${added > 1 ? 's' : ''} pour la fiche.`
+            : 'Rien de nouveau à retenir dans cette discussion.',
+        status: added > 0 ? 'success' : 'warning',
+      });
+    } catch {
+      showToast({ message: 'La mise à jour a échoué. Réessaie.', status: 'error' });
+    } finally {
+      setDebriefing(false);
+    }
+  };
 
   useEffect(() => {
     setSummary(project.fiche?.summary ?? '');
@@ -61,11 +91,29 @@ export default function ProjectFiche({ project }: { project: TChatProject }) {
         <h2 className="text-[13px] font-medium uppercase tracking-wider text-text-secondary">
           Fiche du projet
         </h2>
-        {proposedCount > 0 && (
-          <span className="rounded-full bg-surface-tertiary px-2.5 py-0.5 text-xs font-medium text-text-secondary">
-            {proposedCount} à valider
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {proposedCount > 0 && (
+            <span className="rounded-full bg-surface-tertiary px-2.5 py-0.5 text-xs font-medium text-text-secondary">
+              {proposedCount} à valider
+            </span>
+          )}
+          {project.lastConversationId ? (
+            <button
+              type="button"
+              onClick={debrief}
+              disabled={debriefing}
+              title="Compléter la fiche à partir de la dernière discussion"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-tertiary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {debriefing ? (
+                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles size={13} aria-hidden="true" />
+              )}
+              {debriefing ? 'Lecture...' : 'Mettre à jour'}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {isEmpty ? (

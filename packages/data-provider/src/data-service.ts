@@ -831,6 +831,17 @@ export function saveProjectBrief(projectId: string, text: string): Promise<t.TCh
   return request.post(endpoints.projectBriefs(projectId), { text });
 }
 
+/** Complete la fiche a partir d'une conversation (par defaut la derniere) ; l'IA propose. */
+export function debriefProjectFiche(
+  projectId: string,
+  conversationId?: string,
+): Promise<{ project: t.TChatProject; added: number }> {
+  return request.post(
+    endpoints.projectDebrief(projectId),
+    conversationId ? { conversationId } : {},
+  );
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {

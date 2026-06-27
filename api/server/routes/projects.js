@@ -233,6 +233,94 @@ async function analyzeDocumentToFiche({ req, project, file }) {
   return { summary: typeof parsed.summary === 'string' ? parsed.summary : '', items };
 }
 
+/** Texte lisible d'un message (privilegie .text, sinon assemble les parties .content). */
+function messageText(message) {
+  if (typeof message?.text === 'string' && message.text.trim()) {
+    return message.text.trim();
+  }
+  if (Array.isArray(message?.content)) {
+    return message.content
+      .map((part) => {
+        if (typeof part?.text === 'string') {
+          return part.text;
+        }
+        if (part?.text && typeof part.text.value === 'string') {
+          return part.text.value;
+        }
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  }
+  return '';
+}
+
+/**
+ * Debrief d'une CONVERSATION du projet vers la fiche : lit les messages, demande au modele
+ * ce qui merite d'etre retenu (decisions, echeances, points ouverts, actions) et le renvoie
+ * comme elements PROPOSES (l'user valide). Dedup via les elements deja en fiche. Renvoie null
+ * si rien d'exploitable. Reutilise callLancyaModel + extractJson (meme recette que la fiche doc).
+ */
+async function analyzeConversationToFiche({ req, project, conversationId }) {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  let messages = [];
+  try {
+    messages = await db.getMessages({ conversationId, user: userId });
+  } catch (err) {
+    logger.warn(`[projects] debrief : lecture des messages echouee (${err.message})`);
+    return null;
+  }
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return null;
+  }
+  // Garde la fin de la conversation (le plus recent) si elle est longue.
+  const transcript = messages
+    .map((message) => {
+      const role = message.isCreatedByUser ? 'Utilisateur' : 'Assistant';
+      const text = messageText(message);
+      return text ? `${role} : ${text}` : '';
+    })
+    .filter(Boolean)
+    .join('\n\n')
+    .slice(-16000);
+  if (!transcript.trim()) {
+    return null;
+  }
+  const existing = (project.fiche?.items ?? [])
+    .map((item) => `- ${item.text}`)
+    .join('\n')
+    .slice(0, 1500);
+  const system =
+    "Tu analyses une CONVERSATION rattachee a un dossier de travail. Extrais UNIQUEMENT ce qui merite d'etre garde dans la fiche du dossier : decisions prises, echeances (avec dates si presentes), points ouverts a suivre, prochaines actions, infos cles durables. Ignore le bavardage et l'ephemere. N'invente rien (uniquement ce qui figure dans la conversation). Ne repete PAS un element deja present dans la fiche. Reponds STRICTEMENT en JSON valide, sans texte autour : {\"items\":[{\"section\":\"decision|deadline|open|action|info\",\"text\":\"...\"}]}. Si rien ne merite d'etre retenu, renvoie {\"items\":[]}. N'utilise jamais de tiret cadratin.";
+  const userMsg = `Dossier : ${project.name}\n${
+    existing ? `Deja dans la fiche :\n${existing}\n\n` : ''
+  }Conversation :\n${transcript}`;
+
+  const content = await callLancyaModel({ system, user: userMsg, maxTokens: 1500, temperature: 0.2 });
+  const parsed = extractJson(content);
+  if (!parsed || !Array.isArray(parsed.items)) {
+    logger.warn(`[projects] debrief : reponse non exploitable. Debut: ${String(content).slice(0, 200)}`);
+    return null;
+  }
+  const last = messages[messages.length - 1];
+  const when = last?.createdAt ? new Date(last.createdAt) : new Date();
+  const dateLabel = `${String(when.getDate()).padStart(2, '0')}.${String(when.getMonth() + 1).padStart(2, '0')}.${when.getFullYear()}`;
+  const stamp = Date.now();
+  const items = parsed.items
+    .filter((item) => item && typeof item.text === 'string' && item.text.trim())
+    .slice(0, 15)
+    .map((item, idx) => ({
+      id: `c-${stamp}-${idx}`,
+      section: FICHE_SECTIONS.includes(item.section) ? item.section : 'info',
+      text: String(item.text).slice(0, 2000),
+      source: `Discussion du ${dateLabel}`,
+      status: 'proposed',
+    }));
+  logger.info(`[projects] debrief : ${items.length} element(s) proposes depuis la conversation`);
+  return { items };
+}
+
 const SECTION_LABELS = {
   decision: 'Decisions',
   deadline: 'Echeances',
@@ -403,6 +491,40 @@ router.post('/:projectId/briefs', async (req, res) => {
   } catch (error) {
     logger.error('[projects] Error saving brief', error);
     return res.status(500).json({ error: 'Error saving brief' });
+  }
+});
+
+/**
+ * Debrief : complete la fiche du dossier a partir d'une conversation (par defaut la derniere).
+ * L'IA propose des elements (l'user valide ensuite). Renvoie { project, added }.
+ */
+router.post('/:projectId/debrief', async (req, res) => {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  const { projectId } = req.params;
+  try {
+    const project = await db.getChatProject(userId, projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const conversationId =
+      (typeof req.body?.conversationId === 'string' && req.body.conversationId) ||
+      project.lastConversationId;
+    if (!conversationId) {
+      return res.status(400).json({ error: 'no conversation' });
+    }
+    const analysis = await analyzeConversationToFiche({ req, project, conversationId });
+    if (!analysis || analysis.items.length === 0) {
+      return res.status(200).json({ project, added: 0 });
+    }
+    const fiche = {
+      summary: project.fiche?.summary || '',
+      items: [...(project.fiche?.items ?? []), ...analysis.items],
+    };
+    const updated = await db.updateChatProject(userId, projectId, { fiche });
+    return res.status(200).json({ project: updated, added: analysis.items.length });
+  } catch (error) {
+    logger.error('[projects] Error debrief', error);
+    return res.status(500).json({ error: 'Error debrief' });
   }
 });
 
