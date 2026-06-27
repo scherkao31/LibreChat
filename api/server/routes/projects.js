@@ -150,7 +150,6 @@ async function analyzeDocumentToFiche({ req, project, file }) {
         ],
         temperature: 0.2,
         max_tokens: 900,
-        response_format: { type: 'json_object' },
       }),
     });
     if (!resp.ok) {
