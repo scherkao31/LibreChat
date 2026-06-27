@@ -149,7 +149,7 @@ async function analyzeDocumentToFiche({ req, project, file }) {
           { role: 'user', content: userMsg },
         ],
         temperature: 0.2,
-        max_tokens: 900,
+        max_tokens: 4000,
       }),
     });
     if (!resp.ok) {
@@ -157,7 +157,13 @@ async function analyzeDocumentToFiche({ req, project, file }) {
       return null;
     }
     const data = await resp.json();
-    content = data?.choices?.[0]?.message?.content ?? '';
+    const choice = data?.choices?.[0] ?? {};
+    // Modele raisonnant : la reponse est dans message.content ; on retombe sur le champ
+    // de raisonnement si content est vide. finish_reason='length' = budget de jetons trop court.
+    content = choice.message?.content || choice.message?.reasoning_content || '';
+    if (!content) {
+      logger.warn(`[projects] analyse fiche : contenu vide (finish_reason=${choice.finish_reason})`);
+    }
   } catch (err) {
     logger.warn(`[projects] analyse fiche : appel LLM echoue (${err.message})`);
     return null;
