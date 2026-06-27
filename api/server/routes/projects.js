@@ -1,6 +1,9 @@
 const express = require('express');
+const axios = require('axios');
+const FormData = require('form-data');
 const { logger } = require('@librechat/data-schemas');
-const { createProjectHandlers } = require('@librechat/api');
+const { createProjectHandlers, generateShortLivedToken, logAxiosError } = require('@librechat/api');
+const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const db = require('~/models');
 
@@ -34,12 +37,47 @@ function extractJson(text) {
 }
 
 /**
+ * Recupere le TEXTE d'un document, comme le chat le fait : si le texte est deja stocke
+ * (petits fichiers texte) on le prend, sinon on telecharge le fichier (S3/local...) et on
+ * l'envoie a l'API RAG `/text` qui l'extrait (meme mecanisme que parseText). Renvoie '' si
+ * indisponible. Ne jette jamais.
+ */
+async function getDocumentText({ req, file }) {
+  if (typeof file?.text === 'string' && file.text.trim()) {
+    return file.text;
+  }
+  if (!process.env.RAG_API_URL || !file?.source) {
+    return '';
+  }
+  try {
+    const { getDownloadStream } = getStrategyFunctions(file.source);
+    if (!getDownloadStream) {
+      return '';
+    }
+    const fileStream = await getDownloadStream(req, file.storageKey || file.filepath);
+    const form = new FormData();
+    form.append('file_id', file.file_id);
+    form.append('file', fileStream, file.filename || file.file_id);
+    const jwtToken = generateShortLivedToken(req.user.id);
+    const resp = await axios.post(`${process.env.RAG_API_URL}/text`, form, {
+      headers: { Authorization: `Bearer ${jwtToken}`, accept: 'application/json', ...form.getHeaders() },
+      timeout: 120000,
+      maxBodyLength: Infinity,
+    });
+    return typeof resp.data?.text === 'string' ? resp.data.text : '';
+  } catch (err) {
+    logAxiosError({ error: err, message: '[projects] extraction texte (RAG /text) echouee' });
+    return '';
+  }
+}
+
+/**
  * Analyse un document et propose des elements pour la fiche du projet. BEST-EFFORT :
  * renvoie null si l'analyse n'est pas configuree (variables d'env) ou echoue, sans jamais
  * bloquer l'ajout du document. Appel LLM direct vers un endpoint OpenAI-compatible dedie
  * (FICHE_ANALYSIS_BASE_URL / _API_KEY / _MODEL), decouple du chat.
  */
-async function analyzeDocumentToFiche({ project, file }) {
+async function analyzeDocumentToFiche({ req, project, file }) {
   // Reutilise la config Infomaniak DEJA en place (rien de nouveau a configurer) :
   // INFOMANIAK_API_KEY + PRODUCT_ID (cf. librechat.yaml endpoint Lancya). Le modele
   // defaut = Kimi (bon pour l'extraction) ; surchargable via FICHE_ANALYSIS_MODEL.
@@ -53,7 +91,7 @@ async function analyzeDocumentToFiche({ project, file }) {
   const baseURL =
     process.env.FICHE_ANALYSIS_BASE_URL ||
     `https://api.infomaniak.com/2/ai/${productId}/openai/v1`;
-  const text = typeof file?.text === 'string' ? file.text : '';
+  const text = await getDocumentText({ req, file });
   if (!text.trim()) {
     logger.warn(`[projects] analyse fiche : pas de texte exploitable sur « ${file?.filename} »`);
     return null;
@@ -149,11 +187,11 @@ router.post('/:projectId/documents', async (req, res) => {
       const files = await db.getFiles(
         { file_id: fileId },
         null,
-        { text: 1, filename: 1, file_id: 1, bytes: 1 },
+        { text: 1, filename: 1, file_id: 1, bytes: 1, source: 1, storageKey: 1, filepath: 1 },
       );
       const file = Array.isArray(files) ? files[0] : files;
       if (file) {
-        const analysis = await analyzeDocumentToFiche({ project, file });
+        const analysis = await analyzeDocumentToFiche({ req, project, file });
         if (analysis && analysis.items.length) {
           ficheUpdate = {
             summary: project.fiche?.summary || analysis.summary || '',
