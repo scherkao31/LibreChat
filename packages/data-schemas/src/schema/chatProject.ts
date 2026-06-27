@@ -66,6 +66,11 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
       type: ficheSchema,
       default: () => ({ summary: '', items: [], updatedAt: null }),
     },
+    /** Documents du projet (file_id), partages par toutes ses conversations (RAG). */
+    fileIds: {
+      type: [String],
+      default: [],
+    },
     tenantId: {
       type: String,
       index: true,

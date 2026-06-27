@@ -316,6 +316,7 @@ export type TChatProject = {
   lastConversationAt?: string | null;
   lastConversationId?: string | null;
   fiche?: TChatProjectFiche;
+  fileIds?: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -328,6 +329,7 @@ export type TCreateChatProjectRequest = {
 export type TUpdateChatProjectRequest = Partial<TCreateChatProjectRequest> & {
   projectId: string;
   fiche?: TChatProjectFiche;
+  fileIds?: string[];
 };
 
 export type TDeleteChatProjectResponse = {

@@ -13,6 +13,7 @@ import { useLocalize, useNewConvo } from '~/hooks';
 import { cn, clearMessagesCache } from '~/utils';
 import ProjectChatList from './ProjectChatList';
 import ProjectFiche from './ProjectFiche';
+import ProjectDocuments from './ProjectDocuments';
 import store from '~/store';
 
 type ChatSortField = 'updatedAt' | 'createdAt';
@@ -155,6 +156,8 @@ export default function ProjectWorkspace() {
         </header>
 
         <ProjectFiche project={project} />
+
+        <ProjectDocuments project={project} />
 
         <button
           type="button"
