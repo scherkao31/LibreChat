@@ -316,6 +316,7 @@ export type TChatProject = {
   lastConversationAt?: string | null;
   lastConversationId?: string | null;
   fiche?: TChatProjectFiche;
+  fileIds?: string[];
   createdAt: string;
   updatedAt: string;
 };

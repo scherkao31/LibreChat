@@ -32,6 +32,7 @@ export interface IChatProject {
   lastConversationAt?: Date | null;
   lastConversationId?: string | null;
   fiche?: IChatProjectFiche;
+  fileIds?: string[];
   createdAt?: Date;
   updatedAt?: Date;
   tenantId?: string;
