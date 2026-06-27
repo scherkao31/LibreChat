@@ -816,6 +816,11 @@ export function deleteProject(projectId: string): Promise<t.TDeleteChatProjectRe
   return request.delete(endpoints.projectById(projectId));
 }
 
+/** Rattache un document au projet et declenche son analyse vers la fiche (cote serveur). */
+export function addProjectDocument(projectId: string, fileId: string): Promise<t.TChatProject> {
+  return request.post(endpoints.projectDocuments(projectId), { fileId });
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {

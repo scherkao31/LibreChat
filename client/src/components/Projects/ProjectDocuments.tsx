@@ -1,6 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useQueryClient } from '@tanstack/react-query';
 import { Plus, FileText, Trash2, Loader2 } from 'lucide-react';
+import { dataService, QueryKeys } from 'librechat-data-provider';
 import type { TChatProject, TFile } from 'librechat-data-provider';
 import {
   useGetFiles,
@@ -47,13 +49,22 @@ export default function ProjectDocuments({ project }: { project: TChatProject })
   );
 
   const updateProject = useUpdateProjectMutation();
+  const queryClient = useQueryClient();
 
   const uploadMutation = useUploadFileMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (!data?.file_id) {
         return;
       }
-      updateProject.mutate({ projectId, fileIds: [...fileIds, data.file_id] });
+      try {
+        // Rattache le document au projet ET declenche son analyse vers la fiche.
+        const updated = await dataService.addProjectDocument(projectId, data.file_id);
+        queryClient.setQueryData([QueryKeys.project, projectId], updated);
+        queryClient.invalidateQueries([QueryKeys.files]);
+      } catch {
+        // Repli : au minimum rattacher le document (sans analyse).
+        updateProject.mutate({ projectId, fileIds: [...fileIds, data.file_id] });
+      }
     },
   });
 
