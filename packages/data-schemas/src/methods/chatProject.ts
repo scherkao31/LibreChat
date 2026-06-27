@@ -3,7 +3,12 @@ import logger from '~/config/winston';
 import { isValidObjectIdString } from '~/utils/objectId';
 import { buildRetentionVisibilityFilter } from '~/utils/retention';
 import { escapeRegExp } from '~/utils/string';
-import type { IChatProject, IChatProjectDocument, IConversation } from '~/types';
+import type {
+  IChatProject,
+  IChatProjectDocument,
+  IChatProjectFiche,
+  IConversation,
+} from '~/types';
 
 export type ChatProjectSortBy = 'name' | 'createdAt' | 'lastConversationAt';
 export type ChatProjectSortDirection = 'asc' | 'desc';
@@ -13,7 +18,30 @@ export type CreateChatProjectInput = {
   description?: string | null;
 };
 
-export type UpdateChatProjectInput = Partial<CreateChatProjectInput>;
+export type UpdateChatProjectInput = Partial<CreateChatProjectInput> & {
+  fiche?: IChatProjectFiche;
+};
+
+const FICHE_SECTIONS = new Set(['decision', 'open', 'deadline', 'action', 'info']);
+
+/** Assainit la fiche recue du client (longueurs, sections et statuts valides). */
+function sanitizeFiche(fiche: IChatProjectFiche): IChatProjectFiche {
+  const items = Array.isArray(fiche.items) ? fiche.items.slice(0, 200) : [];
+  return {
+    summary: (fiche.summary ?? '').slice(0, 4000),
+    items: items
+      .filter((item) => item && typeof item.text === 'string' && item.text.trim())
+      .map((item) => ({
+        id: String(item.id ?? ''),
+        section: FICHE_SECTIONS.has(item.section) ? item.section : 'info',
+        text: String(item.text).slice(0, 2000),
+        source: String(item.source ?? '').slice(0, 300),
+        status: item.status === 'proposed' ? 'proposed' : 'validated',
+        createdAt: item.createdAt ?? new Date(),
+      })),
+    updatedAt: new Date(),
+  };
+}
 
 export type ListChatProjectsOptions = {
   cursor?: string | null;
@@ -338,7 +366,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     }
 
     const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
-    const update: Partial<Pick<IChatProject, 'name' | 'description'>> = {};
+    const update: Partial<Pick<IChatProject, 'name' | 'description' | 'fiche'>> = {};
     if (typeof input.name === 'string') {
       const name = input.name.trim().slice(0, 100);
       if (!name) {
@@ -348,6 +376,9 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     }
     if (input.description !== undefined) {
       update.description = input.description?.trim().slice(0, 1000) ?? '';
+    }
+    if (input.fiche !== undefined) {
+      update.fiche = sanitizeFiche(input.fiche);
     }
 
     return await ChatProject.findOneAndUpdate(
