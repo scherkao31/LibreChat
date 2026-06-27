@@ -188,6 +188,9 @@ export function createProjectHandlers(deps: ProjectHandlerDependencies): {
     if (req.body?.description !== undefined) {
       input.description = typeof req.body.description === 'string' ? req.body.description : '';
     }
+    if (req.body?.fiche !== undefined && typeof req.body.fiche === 'object') {
+      input.fiche = req.body.fiche;
+    }
 
     try {
       const project = await deps.updateChatProject(getUserId(req), projectId, input);

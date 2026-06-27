@@ -290,6 +290,23 @@ export type TUpdateConversationRequest = {
 
 export type TUpdateConversationResponse = TConversation;
 
+export type TChatProjectFicheSection = 'decision' | 'open' | 'deadline' | 'action' | 'info';
+
+export type TChatProjectFicheItem = {
+  id: string;
+  section: TChatProjectFicheSection;
+  text: string;
+  source?: string;
+  status: 'proposed' | 'validated';
+  createdAt?: string;
+};
+
+export type TChatProjectFiche = {
+  summary?: string;
+  items: TChatProjectFicheItem[];
+  updatedAt?: string | null;
+};
+
 export type TChatProject = {
   _id: string;
   name: string;
@@ -298,6 +315,7 @@ export type TChatProject = {
   conversationCount: number;
   lastConversationAt?: string | null;
   lastConversationId?: string | null;
+  fiche?: TChatProjectFiche;
   createdAt: string;
   updatedAt: string;
 };
@@ -309,6 +327,7 @@ export type TCreateChatProjectRequest = {
 
 export type TUpdateChatProjectRequest = Partial<TCreateChatProjectRequest> & {
   projectId: string;
+  fiche?: TChatProjectFiche;
 };
 
 export type TDeleteChatProjectResponse = {

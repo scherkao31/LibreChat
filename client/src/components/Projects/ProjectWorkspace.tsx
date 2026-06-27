@@ -12,6 +12,7 @@ import { useConversationsInfiniteQuery, useProjectQuery } from '~/data-provider'
 import { useLocalize, useNewConvo } from '~/hooks';
 import { cn, clearMessagesCache } from '~/utils';
 import ProjectChatList from './ProjectChatList';
+import ProjectFiche from './ProjectFiche';
 import store from '~/store';
 
 type ChatSortField = 'updatedAt' | 'createdAt';
@@ -152,6 +153,8 @@ export default function ProjectWorkspace() {
             ) : null}
           </div>
         </header>
+
+        <ProjectFiche project={project} />
 
         <button
           type="button"
