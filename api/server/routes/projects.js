@@ -40,12 +40,18 @@ function extractJson(text) {
  * (FICHE_ANALYSIS_BASE_URL / _API_KEY / _MODEL), decouple du chat.
  */
 async function analyzeDocumentToFiche({ project, file }) {
-  const baseURL = process.env.FICHE_ANALYSIS_BASE_URL;
-  const apiKey = process.env.FICHE_ANALYSIS_API_KEY;
-  const model = process.env.FICHE_ANALYSIS_MODEL;
-  if (!baseURL || !apiKey || !model) {
+  // Reutilise la config Infomaniak DEJA en place (rien de nouveau a configurer) :
+  // INFOMANIAK_API_KEY + PRODUCT_ID (cf. librechat.yaml endpoint Lancya). Le modele
+  // defaut = Kimi (bon pour l'extraction) ; surchargable via FICHE_ANALYSIS_MODEL.
+  const apiKey = process.env.INFOMANIAK_API_KEY;
+  const productId = process.env.PRODUCT_ID;
+  const model = process.env.FICHE_ANALYSIS_MODEL || 'moonshotai/Kimi-K2.6';
+  if (!apiKey || !productId) {
     return null;
   }
+  const baseURL =
+    process.env.FICHE_ANALYSIS_BASE_URL ||
+    `https://api.infomaniak.com/2/ai/${productId}/openai/v1`;
   const text = typeof file?.text === 'string' ? file.text : '';
   if (!text.trim()) {
     return null;
