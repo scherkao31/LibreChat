@@ -19,21 +19,51 @@ const handlers = createProjectHandlers({
 
 const FICHE_SECTIONS = ['decision', 'deadline', 'open', 'action', 'info'];
 
-/** Extrait le premier objet JSON d'une reponse LLM (tolerant au texte autour). */
+/** Extrait un objet JSON d'une reponse LLM (tolerant aux ``` et au texte de raisonnement). */
 function extractJson(text) {
-  if (!text) {
+  if (!text || typeof text !== 'string') {
     return null;
   }
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    return null;
-  }
+  let s = text.trim();
+  // Retire les blocs de raisonnement et les fences markdown.
+  s = s.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  // Essai direct (cas du mode JSON force).
   try {
-    return JSON.parse(text.slice(start, end + 1));
+    return JSON.parse(s);
   } catch {
+    /* on tente une extraction par blocs */
+  }
+  // Premier bloc { ... } equilibre.
+  const start = s.indexOf('{');
+  if (start === -1) {
     return null;
   }
+  let depth = 0;
+  for (let i = start; i < s.length; i++) {
+    if (s[i] === '{') {
+      depth++;
+    } else if (s[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(s.slice(start, i + 1));
+        } catch {
+          break;
+        }
+      }
+    }
+  }
+  // Dernier recours : du premier { au dernier }.
+  const end = s.lastIndexOf('}');
+  if (end > start) {
+    try {
+      return JSON.parse(s.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 /**
@@ -120,6 +150,7 @@ async function analyzeDocumentToFiche({ req, project, file }) {
         ],
         temperature: 0.2,
         max_tokens: 900,
+        response_format: { type: 'json_object' },
       }),
     });
     if (!resp.ok) {
@@ -135,7 +166,9 @@ async function analyzeDocumentToFiche({ req, project, file }) {
 
   const parsed = extractJson(content);
   if (!parsed || !Array.isArray(parsed.items)) {
-    logger.warn('[projects] analyse fiche : reponse du modele non exploitable (JSON absent)');
+    logger.warn(
+      `[projects] analyse fiche : reponse non exploitable. Debut: ${String(content).slice(0, 300)}`,
+    );
     return null;
   }
   const stamp = Date.now();
