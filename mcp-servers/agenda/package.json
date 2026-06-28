@@ -1,6 +1,6 @@
 {
   "name": "lancya-mcp-agenda",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Serveur MCP agenda (CalDAV, lecture seule) pour Lancya. Chaque utilisateur connecte son agenda ; les identifiants arrivent par en-tetes (jamais stockes ici).",
   "type": "module",
   "main": "server.js",

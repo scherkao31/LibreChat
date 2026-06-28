@@ -22,9 +22,20 @@ const PORT = process.env.PORT || 8080;
 const DEFAULT_CALDAV_URL = process.env.DEFAULT_CALDAV_URL || 'https://sync.infomaniak.com/';
 
 function davClient(creds) {
+  // Specificites Infomaniak (confirmees par la config davx5) :
+  //  (1) l'identifiant d'auth est le COMPTE, sans le suffixe @sync.infomaniak.com (l'email echoue) ;
+  //  (2) la decouverte CalDAV sur la RACINE renvoie 401 / "no service" -> il faut pointer
+  //      directement sur le calendar-home de l'utilisateur : /calendars/<compte>/ .
+  const user = String(creds.user || '')
+    .replace(/@sync\.infomaniak\.com$/i, '')
+    .trim();
+  const base = String(creds.url || DEFAULT_CALDAV_URL).replace(/\/+$/, '');
+  const serverUrl = base.includes('/calendars/')
+    ? `${base}/`
+    : `${base}/calendars/${encodeURIComponent(user)}/`;
   return createDAVClient({
-    serverUrl: creds.url,
-    credentials: { username: creds.user, password: creds.pass },
+    serverUrl,
+    credentials: { username: user, password: creds.pass },
     authMethod: 'Basic',
     defaultAccountType: 'caldav',
   });
@@ -55,7 +66,7 @@ function parseEvents(icalData) {
 
 /** Construit un serveur MCP dont les outils utilisent les identifiants de CET utilisateur. */
 function buildServer(creds) {
-  const server = new McpServer({ name: 'lancya-agenda', version: '0.1.0' });
+  const server = new McpServer({ name: 'lancya-agenda', version: '0.2.0' });
 
   server.registerTool(
     'list_calendars',
