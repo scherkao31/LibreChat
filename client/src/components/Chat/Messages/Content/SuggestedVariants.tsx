@@ -1,5 +1,9 @@
-import { memo, useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { Copy, Check, Mail, Pencil, ListChecks } from 'lucide-react';
+import { memo, useMemo, useState, useCallback, useEffect, useRef, useContext } from 'react';
+import { Copy, Check, Mail, Pencil, ListChecks, FolderPlus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToastContext } from '@librechat/client';
+import { dataService, QueryKeys } from 'librechat-data-provider';
+import { ChatContext } from '~/Providers';
 import { cn } from '~/utils';
 
 /**
@@ -153,6 +157,32 @@ const SuggestedVariants = memo(function SuggestedVariants({ raw }: { raw: string
     }
   }, []);
 
+  // Contexte du chat lu SANS le hook qui jette (ce widget peut etre rendu hors chat) : si on
+  // est dans une conversation de projet, on peut ranger ce livrable directement dans le dossier.
+  const chatContext = useContext(ChatContext);
+  const chatProjectId = chatContext?.conversation?.chatProjectId ?? null;
+  const queryClient = useQueryClient();
+  const { showToast } = useToastContext();
+  const [addedToProject, setAddedToProject] = useState(false);
+
+  const handleAddToProject = useCallback(
+    async (text: string, title?: string) => {
+      if (!chatProjectId || !text.trim()) {
+        return;
+      }
+      try {
+        const updated = await dataService.addProjectDeliverable(chatProjectId, text, title);
+        queryClient.setQueryData([QueryKeys.project, chatProjectId], updated);
+        setAddedToProject(true);
+        setTimeout(() => setAddedToProject(false), 1500);
+        showToast({ message: 'Ajouté au dossier.', status: 'success' });
+      } catch {
+        showToast({ message: "L'ajout au dossier a échoué.", status: 'error' });
+      }
+    },
+    [chatProjectId, queryClient, showToast],
+  );
+
   if (variants.length === 0) {
     return null;
   }
@@ -246,6 +276,20 @@ const SuggestedVariants = memo(function SuggestedVariants({ raw }: { raw: string
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? 'Copie' : 'Copier'}
           </button>
+          {chatProjectId != null && (
+            <button
+              type="button"
+              onClick={() => handleAddToProject(effective, subject)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
+                'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+              )}
+            >
+              {addedToProject ? <Check size={14} /> : <FolderPlus size={14} />}
+              {addedToProject ? 'Ajouté' : 'Ajouter au dossier'}
+            </button>
+          )}
           {mailtoHref && (
             <a
               href={mailtoHref}
