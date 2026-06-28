@@ -316,7 +316,9 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
           `SUIVI D'ECHANGES EMAIL : ce dossier peut suivre des fils de discussion email. Quand l'utilisateur te demande de SUIVRE une discussion (par ex. « suis cette discussion », « ajoute cet echange au dossier », « garde un oeil sur ce fil »), confirme en une phrase, PUIS ajoute un bloc de code dont le langage est exactement « lancya_follow_thread » contenant un JSON : {"subject":"l'objet du fil sans prefixe Re:/Fwd:","from":"adresse du correspondant principal si tu la connais","note":"courte note optionnelle"}. N'emets ce bloc QUE sur demande explicite de suivi. Pour donner des nouvelles d'un fil deja suivi, utilise l'outil de messagerie (read_thread) avec son objet. Quand tu PRESENTES une liste de mails dans ce dossier, n'utilise PAS de tableau markdown : emets un bloc de code dont le langage est exactement « lancya_emails » contenant un JSON, un objet par mail : [{"subject":"objet du mail","from":"expediteur","date":"date courte (ex. 26 juin)","messageId":"l'identifiant du mail si tu l'as"}]. L'interface affichera des cartes avec un bouton « Attacher » par mail.`;
         const projectInstructions =
           typeof project?.instructions === 'string' ? project.instructions.trim() : '';
-        const extras = [ficheCapability, followCapability];
+        const agendaCapability =
+          `AGENDA DU DOSSIER : tu as acces a l'agenda de l'utilisateur (outil agenda). Quand l'utilisateur fait le point sur ce dossier, demande l'avancement, ou les prochaines echeances/rendez-vous, consulte aussi l'agenda (list_events) en filtrant (query) sur le nom du client ou de l'affaire de ce dossier (deduit de la fiche), et integre les rendez-vous et echeances PERTINENTS. Ne liste pas tout l'agenda, seulement ce qui concerne ce dossier.`;
+        const extras = [ficheCapability, followCapability, agendaCapability];
         const followed = Array.isArray(project?.followedThreads) ? project.followedThreads : [];
         if (followed.length > 0) {
           const lines = followed
