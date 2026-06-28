@@ -64,10 +64,19 @@ function buildServer(creds) {
       inputSchema: {},
     },
     async () => {
-      const client = await davClient(creds);
-      const calendars = await client.fetchCalendars();
-      const names = calendars.map((c) => c.displayName || c.url || '').filter(Boolean);
-      return { content: [{ type: 'text', text: JSON.stringify(names) }] };
+      try {
+        const client = await davClient(creds);
+        const calendars = await client.fetchCalendars();
+        const names = calendars.map((c) => c.displayName || c.url || '').filter(Boolean);
+        return { content: [{ type: 'text', text: JSON.stringify(names) }] };
+      } catch (err) {
+        console.error('[agenda] list_calendars error:', err?.stack ?? err?.message ?? err);
+        return {
+          content: [
+            { type: 'text', text: `Erreur agenda (calendriers) : ${String(err?.message ?? err)}` },
+          ],
+        };
+      }
     },
   );
 
@@ -84,54 +93,61 @@ function buildServer(creds) {
       },
     },
     async ({ daysAhead = 14, daysBack = 0, query, limit = 50 }) => {
-      const client = await davClient(creds);
-      const calendars = await client.fetchCalendars();
-      const now = Date.now();
-      const start = new Date(now - Math.max(0, daysBack) * 86400000);
-      const end = new Date(now + Math.max(1, daysAhead) * 86400000);
-      const startIso = start.toISOString();
-      const endIso = end.toISOString();
-      const q = query ? String(query).toLowerCase() : '';
+      try {
+        const client = await davClient(creds);
+        const calendars = await client.fetchCalendars();
+        const now = Date.now();
+        const start = new Date(now - Math.max(0, daysBack) * 86400000);
+        const end = new Date(now + Math.max(1, daysAhead) * 86400000);
+        const startIso = start.toISOString();
+        const endIso = end.toISOString();
+        const q = query ? String(query).toLowerCase() : '';
 
-      const all = [];
-      for (const calendar of calendars) {
-        try {
-          const objects = await client.fetchCalendarObjects({
-            calendar,
-            timeRange: { start: startIso, end: endIso },
-          });
-          for (const obj of objects) {
-            if (!obj || !obj.data) {
-              continue;
+        const all = [];
+        for (const calendar of calendars) {
+          try {
+            const objects = await client.fetchCalendarObjects({
+              calendar,
+              timeRange: { start: startIso, end: endIso },
+            });
+            for (const obj of objects) {
+              if (!obj || !obj.data) {
+                continue;
+              }
+              for (const ev of parseEvents(obj.data)) {
+                if (!ev.start) {
+                  continue;
+                }
+                const evStart = new Date(ev.start);
+                if (Number.isNaN(evStart.getTime()) || evStart < start || evStart > end) {
+                  continue;
+                }
+                if (q && !`${ev.summary} ${ev.location}`.toLowerCase().includes(q)) {
+                  continue;
+                }
+                all.push({
+                  calendar: calendar.displayName || '',
+                  summary: ev.summary,
+                  start: ev.start,
+                  end: ev.end,
+                  location: ev.location,
+                });
+              }
             }
-            for (const ev of parseEvents(obj.data)) {
-              if (!ev.start) {
-                continue;
-              }
-              const evStart = new Date(ev.start);
-              if (Number.isNaN(evStart.getTime()) || evStart < start || evStart > end) {
-                continue;
-              }
-              if (q && !`${ev.summary} ${ev.location}`.toLowerCase().includes(q)) {
-                continue;
-              }
-              all.push({
-                calendar: calendar.displayName || '',
-                summary: ev.summary,
-                start: ev.start,
-                end: ev.end,
-                location: ev.location,
-              });
-            }
+          } catch (calErr) {
+            console.error('[agenda] calendar skipped:', calErr?.message ?? calErr);
           }
-        } catch {
-          // calendrier inaccessible : on passe au suivant
         }
+        all.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+        return {
+          content: [{ type: 'text', text: JSON.stringify(all.slice(0, Math.min(limit, 100))) }],
+        };
+      } catch (err) {
+        console.error('[agenda] list_events error:', err?.stack ?? err?.message ?? err);
+        return {
+          content: [{ type: 'text', text: `Erreur agenda : ${String(err?.message ?? err)}` }],
+        };
       }
-      all.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-      return {
-        content: [{ type: 'text', text: JSON.stringify(all.slice(0, Math.min(limit, 100))) }],
-      };
     },
   );
 
