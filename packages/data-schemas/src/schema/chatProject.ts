@@ -49,6 +49,19 @@ const deliverableSchema = new Schema(
   { _id: false },
 );
 
+/** Un fil email suivi dans le dossier : pointeur vers une discussion, relue a la demande. */
+const followedThreadSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    subject: { type: String, required: true, maxlength: 500 },
+    from: { type: String, default: '', maxlength: 320 },
+    messageId: { type: String, default: '', maxlength: 1000 },
+    note: { type: String, default: '', maxlength: 1000 },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectDocument>(
   {
     name: {
@@ -100,6 +113,11 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
     /** Livrables ranges dans le dossier (produits en discussion), le plus recent en premier. */
     deliverables: {
       type: [deliverableSchema],
+      default: [],
+    },
+    /** Fils email suivis dans le dossier (pointeurs vers des discussions), le plus recent en premier. */
+    followedThreads: {
+      type: [followedThreadSchema],
       default: [],
     },
     /** Contexte permanent du dossier, injecte dans le prompt de toutes ses conversations. */

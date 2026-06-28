@@ -39,6 +39,16 @@ export interface IChatProjectDeliverable {
   createdAt?: Date;
 }
 
+/** Un fil email suivi dans le dossier : pointeur vers une discussion email, relu a la demande. */
+export interface IChatProjectFollowedThread {
+  id: string;
+  subject: string;
+  from?: string;
+  messageId?: string;
+  note?: string;
+  createdAt?: Date;
+}
+
 export interface IChatProject {
   _id?: Types.ObjectId;
   name: string;
@@ -51,6 +61,7 @@ export interface IChatProject {
   fileIds?: string[];
   briefs?: IChatProjectBrief[];
   deliverables?: IChatProjectDeliverable[];
+  followedThreads?: IChatProjectFollowedThread[];
   /** Contexte permanent du dossier, ajoute au prompt dans toutes ses conversations. */
   instructions?: string;
   createdAt?: Date;

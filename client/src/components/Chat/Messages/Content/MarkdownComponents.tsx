@@ -12,6 +12,7 @@ import CarouselViewer from '~/components/Chat/Messages/Content/CarouselViewer';
 import VisualViewer from '~/components/Chat/Messages/Content/VisualViewer';
 import TableViewer from '~/components/Chat/Messages/Content/TableViewer';
 import FicheNote from '~/components/Chat/Messages/Content/FicheNote';
+import FollowThreadNote from '~/components/Chat/Messages/Content/FollowThreadNote';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useFileDownload } from '~/data-provider';
 import { useCodeBlockContext } from '~/Providers';
@@ -56,6 +57,7 @@ export const code: React.ElementType = memo(function MarkdownCode({
   const isVisual = lang === 'lancya_chart' || lang === 'lancya_diagram' || lang === 'lancya_visual';
   const isTable = lang === 'lancya_table';
   const isFiche = lang === 'lancya_fiche';
+  const isFollow = lang === 'lancya_follow_thread';
   const isSingleLine = isSingleLineCode(children);
 
   const { getNextIndex, resetCounter } = useCodeBlockContext();
@@ -71,6 +73,7 @@ export const code: React.ElementType = memo(function MarkdownCode({
         isVisual ||
         isTable ||
         isFiche ||
+        isFollow ||
         isSingleLine,
     ),
   ).current;
@@ -105,6 +108,9 @@ export const code: React.ElementType = memo(function MarkdownCode({
   } else if (isFiche) {
     const content = typeof children === 'string' ? children : String(children);
     return <FicheNote raw={content} />;
+  } else if (isFollow) {
+    const content = typeof children === 'string' ? children : String(children);
+    return <FollowThreadNote raw={content} />;
   } else if (isMermaid) {
     const content = typeof children === 'string' ? children : String(children);
     return (

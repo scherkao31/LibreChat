@@ -9,6 +9,7 @@ import type {
   IChatProjectDeliverable,
   IChatProjectDocument,
   IChatProjectFiche,
+  IChatProjectFollowedThread,
   IConversation,
 } from '~/types';
 
@@ -25,6 +26,7 @@ export type UpdateChatProjectInput = Partial<CreateChatProjectInput> & {
   fileIds?: string[];
   briefs?: IChatProjectBrief[];
   deliverables?: IChatProjectDeliverable[];
+  followedThreads?: IChatProjectFollowedThread[];
   instructions?: string;
 };
 
@@ -70,6 +72,23 @@ function sanitizeDeliverables(deliverables: IChatProjectDeliverable[]): IChatPro
       id: String(item.id ?? ''),
       title: String(item.title ?? '').slice(0, 200),
       content: String(item.content).slice(0, 20000),
+      createdAt: item.createdAt ?? new Date(),
+    }));
+}
+
+/** Assainit les fils email suivis (cap a 100, longueurs). Le plus recent reste en tete. */
+function sanitizeFollowedThreads(
+  threads: IChatProjectFollowedThread[],
+): IChatProjectFollowedThread[] {
+  const list = Array.isArray(threads) ? threads.slice(0, 100) : [];
+  return list
+    .filter((item) => item && typeof item.subject === 'string' && item.subject.trim())
+    .map((item) => ({
+      id: String(item.id ?? ''),
+      subject: String(item.subject).slice(0, 500),
+      from: String(item.from ?? '').slice(0, 320),
+      messageId: String(item.messageId ?? '').slice(0, 1000),
+      note: String(item.note ?? '').slice(0, 1000),
       createdAt: item.createdAt ?? new Date(),
     }));
 }
@@ -400,7 +419,14 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     const update: Partial<
       Pick<
         IChatProject,
-        'name' | 'description' | 'fiche' | 'fileIds' | 'briefs' | 'deliverables' | 'instructions'
+        | 'name'
+        | 'description'
+        | 'fiche'
+        | 'fileIds'
+        | 'briefs'
+        | 'deliverables'
+        | 'followedThreads'
+        | 'instructions'
       >
     > = {};
     if (typeof input.name === 'string') {
@@ -426,6 +452,9 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     }
     if (input.deliverables !== undefined) {
       update.deliverables = sanitizeDeliverables(input.deliverables);
+    }
+    if (input.followedThreads !== undefined) {
+      update.followedThreads = sanitizeFollowedThreads(input.followedThreads);
     }
     if (input.instructions !== undefined) {
       update.instructions = String(input.instructions ?? '').slice(0, 4000);

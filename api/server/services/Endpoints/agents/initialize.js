@@ -312,9 +312,21 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
       if (primaryAgent) {
         const ficheCapability =
           `MEMOIRE DU DOSSIER : ce dossier de travail a une fiche (sa memoire structuree). Quand l'utilisateur te demande EXPLICITEMENT de retenir, noter ou sauvegarder une information dans le dossier (par ex. « retiens que... », « note ca dans le dossier », « sauvegarde cette info »), confirme en une phrase, PUIS ajoute un bloc de code dont le langage est exactement « lancya_fiche » contenant un JSON : {"section":"decision|deadline|open|action|info","text":"l'information a retenir, reformulee clairement et de facon autonome"}. Un bloc par information (plusieurs blocs si plusieurs infos). N'emets ce bloc QUE sur demande explicite de memorisation, jamais spontanement.`;
+        const followCapability =
+          `SUIVI D'ECHANGES EMAIL : ce dossier peut suivre des fils de discussion email. Quand l'utilisateur te demande de SUIVRE une discussion (par ex. « suis cette discussion », « ajoute cet echange au dossier », « garde un oeil sur ce fil »), confirme en une phrase, PUIS ajoute un bloc de code dont le langage est exactement « lancya_follow_thread » contenant un JSON : {"subject":"l'objet du fil sans prefixe Re:/Fwd:","from":"adresse du correspondant principal si tu la connais","note":"courte note optionnelle"}. N'emets ce bloc QUE sur demande explicite de suivi. Pour donner des nouvelles d'un fil deja suivi, utilise l'outil de messagerie (read_thread) avec son objet.`;
         const projectInstructions =
           typeof project?.instructions === 'string' ? project.instructions.trim() : '';
-        const extras = [ficheCapability];
+        const extras = [ficheCapability, followCapability];
+        const followed = Array.isArray(project?.followedThreads) ? project.followedThreads : [];
+        if (followed.length > 0) {
+          const lines = followed
+            .slice(0, 30)
+            .map((t) => `- « ${t.subject} »${t.from ? ` (avec ${t.from})` : ''}`)
+            .join('\n');
+          extras.push(
+            `Fils email suivis dans ce dossier (relis leur dernier etat avec l'outil de messagerie quand l'utilisateur demande des nouvelles) :\n${lines}`,
+          );
+        }
         if (projectInstructions) {
           extras.push(`Contexte du dossier de travail en cours :\n${projectInstructions}`);
         }

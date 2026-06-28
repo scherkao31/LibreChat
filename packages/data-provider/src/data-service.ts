@@ -859,6 +859,14 @@ export function addProjectFicheItems(
   return request.post(endpoints.projectFicheItems(projectId), { items });
 }
 
+/** Suit un fil email dans le dossier (bloc lancya_follow_thread) ; renvoie le projet maj. */
+export function followProjectThread(
+  projectId: string,
+  thread: { subject: string; from?: string; messageId?: string; note?: string },
+): Promise<t.TChatProject> {
+  return request.post(endpoints.projectThreads(projectId), thread);
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {

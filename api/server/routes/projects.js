@@ -659,6 +659,53 @@ router.post('/:projectId/fiche-items', async (req, res) => {
   }
 });
 
+/**
+ * Suit un fil email dans le dossier : ajoute un pointeur vers une discussion (sujet + correspondant
+ * + messageId optionnel) que Lancya pourra relire a la demande (outil read_thread). Emis via un bloc
+ * lancya_follow_thread quand l'utilisateur demande de « suivre » une discussion. Dedup par messageId
+ * sinon par sujet+correspondant. Le plus recent en tete, cap a 100. Renvoie le projet mis a jour.
+ */
+router.post('/:projectId/threads', async (req, res) => {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  const { projectId } = req.params;
+  const subject = typeof req.body?.subject === 'string' ? req.body.subject.trim().slice(0, 500) : '';
+  const from = typeof req.body?.from === 'string' ? req.body.from.trim().slice(0, 320) : '';
+  const messageId =
+    typeof req.body?.messageId === 'string' ? req.body.messageId.trim().slice(0, 1000) : '';
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 1000) : '';
+  if (!subject) {
+    return res.status(400).json({ error: 'subject is required' });
+  }
+  try {
+    const project = await db.getChatProject(userId, projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const previous = Array.isArray(project.followedThreads) ? project.followedThreads : [];
+    const norm = (s) => String(s || '').trim().toLowerCase();
+    const keyOf = (t) =>
+      norm(t.messageId) ? `mid:${norm(t.messageId)}` : `subj:${norm(t.subject)}|${norm(t.from)}`;
+    const incomingKey = keyOf({ messageId, subject, from });
+    if (previous.some((t) => keyOf(t) === incomingKey)) {
+      return res.status(200).json(project);
+    }
+    const thread = {
+      id: `t-${Date.now()}`,
+      subject,
+      from,
+      messageId,
+      note,
+      createdAt: new Date(),
+    };
+    const followedThreads = [thread, ...previous].slice(0, 100);
+    const updated = await db.updateChatProject(userId, projectId, { followedThreads });
+    return res.status(200).json(updated);
+  } catch (error) {
+    logger.error('[projects] Error following thread', error);
+    return res.status(500).json({ error: 'Error following thread' });
+  }
+});
+
 router.get('/:projectId', handlers.getProject);
 router.patch('/:projectId', handlers.updateProject);
 router.delete('/:projectId', handlers.deleteProject);
