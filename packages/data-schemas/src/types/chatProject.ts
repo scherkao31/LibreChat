@@ -51,6 +51,8 @@ export interface IChatProject {
   fileIds?: string[];
   briefs?: IChatProjectBrief[];
   deliverables?: IChatProjectDeliverable[];
+  /** Contexte permanent du dossier, ajoute au prompt dans toutes ses conversations. */
+  instructions?: string;
   createdAt?: Date;
   updatedAt?: Date;
   tenantId?: string;

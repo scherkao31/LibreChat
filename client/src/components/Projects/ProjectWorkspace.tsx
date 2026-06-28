@@ -15,6 +15,7 @@ import ProjectChatList from './ProjectChatList';
 import ProjectFiche from './ProjectFiche';
 import ProjectBriefs from './ProjectBriefs';
 import ProjectDocuments from './ProjectDocuments';
+import ProjectInstructions from './ProjectInstructions';
 import ProjectDeliverables from './ProjectDeliverables';
 import store from '~/store';
 
@@ -162,6 +163,8 @@ export default function ProjectWorkspace() {
         <ProjectBriefs project={project} />
 
         <ProjectDocuments project={project} />
+
+        <ProjectInstructions project={project} />
 
         <ProjectDeliverables project={project} />
 

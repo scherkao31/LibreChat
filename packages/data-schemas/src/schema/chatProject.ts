@@ -102,6 +102,12 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
       type: [deliverableSchema],
       default: [],
     },
+    /** Contexte permanent du dossier, injecte dans le prompt de toutes ses conversations. */
+    instructions: {
+      type: String,
+      default: '',
+      maxlength: 4000,
+    },
     tenantId: {
       type: String,
       index: true,

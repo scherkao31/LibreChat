@@ -194,6 +194,9 @@ export function createProjectHandlers(deps: ProjectHandlerDependencies): {
     if (Array.isArray(req.body?.fileIds)) {
       input.fileIds = req.body.fileIds;
     }
+    if (req.body?.instructions !== undefined) {
+      input.instructions = typeof req.body.instructions === 'string' ? req.body.instructions : '';
+    }
 
     try {
       const project = await deps.updateChatProject(getUserId(req), projectId, input);

@@ -300,6 +300,18 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
           requestFiles.push(...projectFiles);
         }
       }
+      // Instructions du projet : contexte permanent du dossier, ajoute aux instructions de
+      // l'agent (additional_instructions arrive dans le systeme). Vaut pour chaque tour.
+      const projectInstructions =
+        typeof project?.instructions === 'string' ? project.instructions.trim() : '';
+      if (projectInstructions && primaryAgent) {
+        primaryAgent.additional_instructions = [
+          primaryAgent.additional_instructions ?? '',
+          `Contexte du dossier de travail en cours :\n${projectInstructions}`,
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+      }
     } catch (err) {
       logger.warn(`[initializeClient] ancrage projet ignore : ${err.message}`);
     }
