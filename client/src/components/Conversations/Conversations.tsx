@@ -145,8 +145,10 @@ const DateLabel: FC<{ groupName: string; isFirst?: boolean }> = memo(({ groupNam
       aria-label={localize('com_a11y_chats_date_section', {
         date: localize(groupName as TranslationKeys) || groupName,
       })}
-      className={cn('pl-1 pt-1 text-text-secondary', isFirst === true ? 'mt-0' : 'mt-2')}
-      style={{ fontSize: '0.7rem' }}
+      className={cn(
+        'px-2.5 pt-1 text-[11px] font-medium uppercase tracking-wider text-text-tertiary',
+        isFirst === true ? 'mt-1' : 'mt-5',
+      )}
     >
       {localize(groupName as TranslationKeys) || groupName}
     </h2>
