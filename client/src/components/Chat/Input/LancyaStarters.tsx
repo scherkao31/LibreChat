@@ -1,11 +1,12 @@
 import type { ElementType } from 'react';
 import { Presentation, BarChart3, Table, FileText, Images, Workflow } from 'lucide-react';
-import { useSubmitMessage } from '~/hooks';
+import { useChatFormContext } from '~/Providers';
 
 /**
  * LancyaStarters — exemples cliquables sur l'ecran d'accueil, pour faire DECOUVRIR
  * les capacites (presentations, carrousels, graphiques, tableaux, comptes-rendus,
- * schemas). Un clic envoie le prompt. Affiche uniquement sur la landing (etat vide).
+ * schemas). Un clic PRE-REMPLIT l'input (l'utilisateur edite/envoie lui-meme), il
+ * n'envoie pas tout seul. Affiche uniquement sur la landing (etat vide).
  */
 
 const STARTERS: { icon: ElementType; title: string; prompt: string }[] = [
@@ -42,7 +43,23 @@ const STARTERS: { icon: ElementType; title: string; prompt: string }[] = [
 ];
 
 export default function LancyaStarters() {
-  const { submitMessage } = useSubmitMessage();
+  const methods = useChatFormContext();
+
+  // Pre-remplit l'input avec l'exemple (sans envoyer) et place le curseur a la fin,
+  // pour que l'utilisateur puisse l'ajuster avant d'appuyer sur Entree.
+  const fillInput = (text: string) => {
+    methods.setValue('text', text, { shouldValidate: true });
+    setTimeout(() => {
+      const textarea = document.querySelector(
+        'textarea[data-testid="text-input"]',
+      ) as HTMLTextAreaElement | null;
+      if (textarea) {
+        textarea.focus();
+        const end = textarea.value.length;
+        textarea.setSelectionRange(end, end);
+      }
+    }, 0);
+  };
 
   return (
     <div className="mx-auto mt-2 w-full max-w-2xl px-2">
@@ -54,7 +71,7 @@ export default function LancyaStarters() {
             <button
               key={s.title}
               type="button"
-              onClick={() => submitMessage({ text: s.prompt })}
+              onClick={() => fillInput(s.prompt)}
               className="group flex items-start gap-3 rounded-2xl border border-border-light bg-surface-primary px-4 py-3.5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border-medium hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
             >
               <Icon size={18} className="mt-0.5 shrink-0 text-text-secondary" aria-hidden="true" />

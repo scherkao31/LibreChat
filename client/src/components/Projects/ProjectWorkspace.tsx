@@ -160,6 +160,23 @@ export default function ProjectWorkspace() {
 
         <ProjectFiche project={project} />
 
+        <button
+          type="button"
+          onClick={startProjectChat}
+          className={cn(
+            'mt-5 flex w-full items-center gap-3 rounded-[26px] border border-border-light bg-surface-primary px-3.5 py-3 text-left shadow-sm transition-all duration-200',
+            'hover:border-border-medium hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary',
+          )}
+          aria-label={localize('com_ui_new_chat_in_project', { name: project.name })}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-text-primary">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-text-secondary">
+            {localize('com_ui_new_chat_in_project', { name: project.name })}
+          </span>
+        </button>
+
         <ProjectBriefs project={project} />
 
         <ProjectDocuments project={project} />
@@ -167,23 +184,6 @@ export default function ProjectWorkspace() {
         <ProjectInstructions project={project} />
 
         <ProjectDeliverables project={project} />
-
-        <button
-          type="button"
-          onClick={startProjectChat}
-          className={cn(
-            'mt-6 flex w-full items-center gap-3 rounded-[26px] border border-border-medium bg-surface-secondary px-3.5 py-3 text-left shadow-sm transition-colors',
-            'hover:bg-surface-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary',
-          )}
-          aria-label={localize('com_ui_new_chat_in_project', { name: project.name })}
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-tertiary text-text-primary">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1 truncate text-text-secondary">
-            {localize('com_ui_new_chat_in_project', { name: project.name })}
-          </span>
-        </button>
 
         <section className="mt-8 flex min-h-0 flex-1 flex-col">
           <div className="mb-2 flex items-center justify-between gap-3">
