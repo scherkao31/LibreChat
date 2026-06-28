@@ -22,6 +22,23 @@ import {
 
 type Pending = { key: string; name: string; phase: 'upload' | 'analyse' | 'error' };
 
+/** Dimensions d'une image (le serveur d'upload les attend pour les fichiers image). */
+function readImageSize(file: File): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      resolve(null);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  });
+}
+
 function formatSize(bytes?: number): string {
   if (!bytes) {
     return '';
@@ -72,13 +89,24 @@ export default function ProjectDocuments({ project }: { project: TChatProject })
       const key = uuidv4();
       setPending((p) => [...p, { key, name: file.name, phase: 'upload' }]);
       try {
+        const isImage = file.type.startsWith('image/');
         const formData = new FormData();
         formData.append('endpoint', endpoint);
         formData.append('endpointType', '');
         formData.append('file', file, encodeURIComponent(file.name));
         formData.append('file_id', uuidv4());
         formData.append('message_file', 'true');
-        formData.append('tool_resource', 'file_search');
+        // Image : on envoie ses dimensions (comme le chat) et pas de file_search ; le modele la
+        // lit en vision pour la fiche. Document : file_search (extraction de texte).
+        if (isImage) {
+          const size = await readImageSize(file);
+          if (size) {
+            formData.append('width', String(size.width));
+            formData.append('height', String(size.height));
+          }
+        } else {
+          formData.append('tool_resource', 'file_search');
+        }
         const uploaded = await uploadMutation.mutateAsync(formData);
 
         // Phase analyse : le serveur rattache le doc ET l'analyse vers la fiche.

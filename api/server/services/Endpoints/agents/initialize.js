@@ -297,7 +297,12 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
       if (missingIds.length > 0) {
         const projectFiles = await db.getFiles({ file_id: { $in: missingIds } });
         if (Array.isArray(projectFiles) && projectFiles.length > 0) {
-          requestFiles.push(...projectFiles);
+          // On n'ancre que les documents (file_search). Les images sont analysees une fois vers
+          // la fiche (vision a l'ajout), pas reexpediees au modele a chaque tour (couteux).
+          const docs = projectFiles.filter((file) => !String(file.type || '').startsWith('image/'));
+          if (docs.length > 0) {
+            requestFiles.push(...docs);
+          }
         }
       }
       // Ajout aux instructions de l'agent (additional_instructions arrive dans le systeme,

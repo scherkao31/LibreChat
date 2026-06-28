@@ -144,6 +144,35 @@ async function getDocumentText({ req, file }) {
 }
 
 /**
+ * Telecharge une image et la renvoie en data URL base64 (pour l'envoyer au modele en vision).
+ * Renvoie '' si indisponible ou trop grosse (>10 Mo). Ne jette jamais.
+ */
+async function getImageDataUrl({ req, file }) {
+  if (!file?.source || !file?.type) {
+    return '';
+  }
+  try {
+    const { getDownloadStream } = getStrategyFunctions(file.source);
+    if (!getDownloadStream) {
+      return '';
+    }
+    const stream = await getDownloadStream(req, file.storageKey || file.filepath);
+    const chunks = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+    if (buffer.length === 0 || buffer.length > 10 * 1024 * 1024) {
+      return '';
+    }
+    return `data:${file.type};base64,${buffer.toString('base64')}`;
+  } catch (err) {
+    logger.warn(`[projects] image -> base64 echouee (${err.message})`);
+    return '';
+  }
+}
+
+/**
  * Analyse un document et propose des elements pour la fiche du projet. BEST-EFFORT :
  * renvoie null si l'analyse n'est pas configuree (variables d'env) ou echoue, sans jamais
  * bloquer l'ajout du document. Appel LLM direct vers un endpoint OpenAI-compatible dedie
@@ -163,21 +192,37 @@ async function analyzeDocumentToFiche({ req, project, file }) {
   const baseURL =
     process.env.FICHE_ANALYSIS_BASE_URL ||
     `https://api.infomaniak.com/2/ai/${productId}/openai/v1`;
-  const text = await getDocumentText({ req, file });
-  if (!text.trim()) {
-    logger.warn(`[projects] analyse fiche : pas de texte exploitable sur « ${file?.filename} »`);
-    return null;
-  }
-  const docText = text.slice(0, 24000);
+  const isImage = typeof file?.type === 'string' && file.type.startsWith('image/');
   const existing = (project.fiche?.items ?? [])
     .map((i) => `- ${i.text}`)
     .join('\n')
     .slice(0, 1500);
   const system =
-    "Tu analyses un document ajoute a un projet de travail. Extrais UNIQUEMENT ce qui est essentiel pour suivre le projet : decisions, echeances (avec dates si presentes), points ouverts, et infos cles a retenir. Concis et factuel, jamais d'invention (seulement ce qui figure dans le document). Reponds STRICTEMENT en JSON valide, sans aucun texte autour, au format : {\"summary\":\"1 a 2 phrases sur ce que ce document apporte au projet\",\"items\":[{\"section\":\"decision|deadline|open|action|info\",\"text\":\"...\"}]}. N'utilise jamais de tiret cadratin.";
-  const userMsg = `Projet : ${project.name}\n${
+    "Tu analyses un document ou une image ajoute a un projet de travail. Extrais UNIQUEMENT ce qui est essentiel pour suivre le projet : decisions, echeances (avec dates si presentes), points ouverts, et infos cles a retenir. Pour une image (lettre, acte, capture, note manuscrite), lis son contenu : texte, chiffres, ce qu'elle montre. Concis et factuel, jamais d'invention (seulement ce qui figure dans le document ou l'image). Reponds STRICTEMENT en JSON valide, sans aucun texte autour, au format : {\"summary\":\"1 a 2 phrases sur ce que ce document apporte au projet\",\"items\":[{\"section\":\"decision|deadline|open|action|info\",\"text\":\"...\"}]}. N'utilise jamais de tiret cadratin.";
+  const userPrefix = `Projet : ${project.name}\n${
     existing ? `Elements deja dans la fiche :\n${existing}\n\n` : ''
-  }Document « ${file.filename} » :\n${docText}`;
+  }`;
+
+  // Image -> on l'envoie a Kimi en VISION (il lit les images, teste). Document -> texte extrait.
+  let userContent;
+  if (isImage) {
+    const dataUrl = await getImageDataUrl({ req, file });
+    if (!dataUrl) {
+      logger.warn(`[projects] analyse fiche : image illisible « ${file?.filename} »`);
+      return null;
+    }
+    userContent = [
+      { type: 'text', text: `${userPrefix}Image « ${file.filename} » a analyser pour la fiche :` },
+      { type: 'image_url', image_url: { url: dataUrl } },
+    ];
+  } else {
+    const text = await getDocumentText({ req, file });
+    if (!text.trim()) {
+      logger.warn(`[projects] analyse fiche : pas de texte exploitable sur « ${file?.filename} »`);
+      return null;
+    }
+    userContent = `${userPrefix}Document « ${file.filename} » :\n${text.slice(0, 24000)}`;
+  }
 
   let content = '';
   try {
@@ -188,7 +233,7 @@ async function analyzeDocumentToFiche({ req, project, file }) {
         model,
         messages: [
           { role: 'system', content: system },
-          { role: 'user', content: userMsg },
+          { role: 'user', content: userContent },
         ],
         temperature: 0.2,
         max_tokens: 4000,
@@ -413,7 +458,7 @@ router.post('/:projectId/documents', async (req, res) => {
       const files = await db.getFiles(
         { file_id: fileId },
         null,
-        { text: 1, filename: 1, file_id: 1, bytes: 1, source: 1, storageKey: 1, filepath: 1 },
+        { text: 1, type: 1, filename: 1, file_id: 1, bytes: 1, source: 1, storageKey: 1, filepath: 1 },
       );
       const file = Array.isArray(files) ? files[0] : files;
       if (file) {
