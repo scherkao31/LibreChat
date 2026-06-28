@@ -71,16 +71,9 @@ const isValidThemeColors = (value: unknown): value is IThemeRGB => {
  * Get initial theme from localStorage or default to 'system'
  */
 const getInitialTheme = (): string => {
-  if (typeof window === 'undefined') return 'system';
-  try {
-    const stored = localStorage.getItem(THEME_KEY);
-    if (stored && ['light', 'dark', 'system'].includes(stored)) {
-      return stored;
-    }
-  } catch {
-    // localStorage not available
-  }
-  return 'system';
+  // Mode clair force pour l'instant (mode sombre desactive). On ignore la preference stockee
+  // et on reste toujours en clair. Pour reactiver le choix : restaurer la lecture localStorage.
+  return 'light';
 };
 
 /**
@@ -132,11 +125,12 @@ export function ThemeProvider({
   // Track if props have been initialized
   const initialized = useRef(false);
 
-  const setTheme = useCallback((newTheme: string) => {
-    setThemeState(newTheme);
+  const setTheme = useCallback((_newTheme: string) => {
+    // Mode clair force : on ignore le theme demande et on reste en clair (mode sombre desactive).
+    setThemeState('light');
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem(THEME_KEY, newTheme);
+      localStorage.setItem(THEME_KEY, 'light');
     } catch {
       // localStorage not available
     }
