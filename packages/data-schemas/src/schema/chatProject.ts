@@ -38,6 +38,17 @@ const briefSchema = new Schema(
   { _id: false },
 );
 
+/** Un livrable range dans le dossier (contenu produit en discussion). */
+const deliverableSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    title: { type: String, default: '', maxlength: 200 },
+    content: { type: String, required: true, maxlength: 20000 },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectDocument>(
   {
     name: {
@@ -84,6 +95,11 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
     /** Historique des « points » (debriefs horodates), le plus recent en premier. */
     briefs: {
       type: [briefSchema],
+      default: [],
+    },
+    /** Livrables ranges dans le dossier (produits en discussion), le plus recent en premier. */
+    deliverables: {
+      type: [deliverableSchema],
       default: [],
     },
     tenantId: {

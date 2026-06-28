@@ -1,13 +1,47 @@
 import React, { useState, useMemo, memo } from 'react';
 import { useRecoilState } from 'recoil';
+import { useQueryClient } from '@tanstack/react-query';
+import { FolderPlus } from 'lucide-react';
 import type { TConversation, TMessage, TFeedback } from 'librechat-data-provider';
-import { EditIcon, Clipboard, CheckMark, ContinueIcon, RegenerateIcon } from '@librechat/client';
+import { dataService, QueryKeys } from 'librechat-data-provider';
+import {
+  EditIcon,
+  Clipboard,
+  CheckMark,
+  ContinueIcon,
+  RegenerateIcon,
+  useToastContext,
+} from '@librechat/client';
 import { useGenerationsByLatest, useLocalize } from '~/hooks';
 import { Fork } from '~/components/Conversations';
 import MessageAudio from './MessageAudio';
 import Feedback from './Feedback';
 import { cn } from '~/utils';
 import store from '~/store';
+
+/**
+ * Texte « livrable » d'un message de l'IA : on garde le contenu utile, pas le raisonnement.
+ * Si le message porte un bloc a copier (lancya_variants / lancya_doc), on extrait son corps
+ * (email, courrier, document) et on retire les libelles de variante. Sinon, le texte brut.
+ */
+const toDeliverableText = (message: TMessage): string => {
+  let raw = '';
+  if (Array.isArray(message.content)) {
+    raw = message.content
+      .map((part) =>
+        part && typeof part === 'object' && 'text' in part && typeof part.text === 'string'
+          ? part.text
+          : '',
+      )
+      .join('');
+  }
+  if (!raw.trim()) {
+    raw = typeof message.content === 'string' ? message.content : message.text || '';
+  }
+  const block = raw.match(/```lancya_(?:variants|doc)\s*([\s\S]*?)```/i);
+  const body = (block ? block[1] : raw).replace(/^\[\[\s*.*?\s*\]\]\s*$/gm, '').trim();
+  return body;
+};
 
 type THoverButtons = {
   isEditing: boolean;
@@ -124,8 +158,12 @@ const HoverButtons = ({
   handleFeedback,
 }: THoverButtons) => {
   const localize = useLocalize();
+  const queryClient = useQueryClient();
+  const { showToast } = useToastContext();
   const [isCopied, setIsCopied] = useState(false);
+  const [savedToProject, setSavedToProject] = useState(false);
   const [TextToSpeech] = useRecoilState<boolean>(store.textToSpeech);
+  const chatProjectId = conversation?.chatProjectId ?? null;
 
   const endpoint = useMemo(() => {
     if (!conversation) {
@@ -184,6 +222,26 @@ const HoverButtons = ({
 
   const handleCopy = () => copyToClipboard(setIsCopied);
 
+  const handleAddToProject = async () => {
+    if (!chatProjectId) {
+      return;
+    }
+    const content = toDeliverableText(message);
+    if (!content.trim()) {
+      showToast({ message: 'Rien à ranger dans ce message.', status: 'warning' });
+      return;
+    }
+    try {
+      const updated = await dataService.addProjectDeliverable(chatProjectId, content);
+      queryClient.setQueryData([QueryKeys.project, chatProjectId], updated);
+      setSavedToProject(true);
+      setTimeout(() => setSavedToProject(false), 1500);
+      showToast({ message: 'Ajouté au dossier.', status: 'success' });
+    } catch {
+      showToast({ message: "L'ajout au dossier a échoué.", status: 'error' });
+    }
+  };
+
   return (
     <div className="group visible flex justify-center gap-0.5 self-end focus-within:outline-none lg:justify-start">
       {/* Text to Speech */}
@@ -218,6 +276,18 @@ const HoverButtons = ({
           isSubmitting && isCreatedByUser ? 'md:opacity-0 md:group-hover:opacity-100' : '',
         )}
       />
+
+      {/* Ajouter au dossier (livrable) : seulement pour les reponses de l'IA dans un projet */}
+      {!isCreatedByUser && chatProjectId != null && (
+        <HoverButton
+          onClick={handleAddToProject}
+          title={savedToProject ? 'Ajouté au dossier' : 'Ajouter au dossier'}
+          icon={
+            savedToProject ? <CheckMark className="h-[18px] w-[18px]" /> : <FolderPlus size={19} />
+          }
+          isLast={isLast}
+        />
+      )}
 
       {/* Edit Button */}
       {isEditableEndpoint && (

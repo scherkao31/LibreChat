@@ -141,6 +141,8 @@ export const projectBriefs = (id: string) =>
   `${projectsRoot}/${encodeURIComponent(id)}/briefs`;
 export const projectDebrief = (id: string) =>
   `${projectsRoot}/${encodeURIComponent(id)}/debrief`;
+export const projectDeliverables = (id: string) =>
+  `${projectsRoot}/${encodeURIComponent(id)}/deliverables`;
 
 export const projectConversation = (conversationId: string) =>
   `${projectsRoot}/conversations/${encodeURIComponent(conversationId)}`;

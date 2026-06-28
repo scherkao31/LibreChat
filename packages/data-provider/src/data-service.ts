@@ -842,6 +842,15 @@ export function debriefProjectFiche(
   );
 }
 
+/** Range un livrable (contenu produit en discussion) dans le dossier ; renvoie le projet maj. */
+export function addProjectDeliverable(
+  projectId: string,
+  content: string,
+  title?: string,
+): Promise<t.TChatProject> {
+  return request.post(endpoints.projectDeliverables(projectId), { content, title });
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {

@@ -528,6 +528,39 @@ router.post('/:projectId/debrief', async (req, res) => {
   }
 });
 
+/**
+ * Range un livrable (contenu produit en discussion) dans le dossier (le plus recent en tete,
+ * cap a 50). Renvoie le projet mis a jour (avec deliverables). Contenu + titre viennent du front.
+ */
+router.post('/:projectId/deliverables', async (req, res) => {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  const { projectId } = req.params;
+  const content = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0, 200) : '';
+  if (!content) {
+    return res.status(400).json({ error: 'content is required' });
+  }
+  try {
+    const project = await db.getChatProject(userId, projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const previous = Array.isArray(project.deliverables) ? project.deliverables : [];
+    const deliverable = {
+      id: `d-${Date.now()}`,
+      title: title || content.split('\n').find((l) => l.trim())?.slice(0, 80) || 'Livrable',
+      content: content.slice(0, 20000),
+      createdAt: new Date(),
+    };
+    const deliverables = [deliverable, ...previous].slice(0, 50);
+    const updated = await db.updateChatProject(userId, projectId, { deliverables });
+    return res.status(200).json(updated);
+  } catch (error) {
+    logger.error('[projects] Error saving deliverable', error);
+    return res.status(500).json({ error: 'Error saving deliverable' });
+  }
+});
+
 router.get('/:projectId', handlers.getProject);
 router.patch('/:projectId', handlers.updateProject);
 router.delete('/:projectId', handlers.deleteProject);

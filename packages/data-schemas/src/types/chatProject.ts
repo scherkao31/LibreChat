@@ -31,6 +31,14 @@ export interface IChatProjectBrief {
   createdAt?: Date;
 }
 
+/** Un livrable range dans le dossier : un contenu produit en discussion (email, compte-rendu...). */
+export interface IChatProjectDeliverable {
+  id: string;
+  title: string;
+  content: string;
+  createdAt?: Date;
+}
+
 export interface IChatProject {
   _id?: Types.ObjectId;
   name: string;
@@ -42,6 +50,7 @@ export interface IChatProject {
   fiche?: IChatProjectFiche;
   fileIds?: string[];
   briefs?: IChatProjectBrief[];
+  deliverables?: IChatProjectDeliverable[];
   createdAt?: Date;
   updatedAt?: Date;
   tenantId?: string;

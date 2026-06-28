@@ -15,6 +15,7 @@ import ProjectChatList from './ProjectChatList';
 import ProjectFiche from './ProjectFiche';
 import ProjectBriefs from './ProjectBriefs';
 import ProjectDocuments from './ProjectDocuments';
+import ProjectDeliverables from './ProjectDeliverables';
 import store from '~/store';
 
 type ChatSortField = 'updatedAt' | 'createdAt';
@@ -161,6 +162,8 @@ export default function ProjectWorkspace() {
         <ProjectBriefs project={project} />
 
         <ProjectDocuments project={project} />
+
+        <ProjectDeliverables project={project} />
 
         <button
           type="button"

@@ -314,6 +314,14 @@ export type TChatProjectBrief = {
   createdAt?: string;
 };
 
+/** Un livrable range dans le dossier (contenu produit en discussion). */
+export type TChatProjectDeliverable = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt?: string;
+};
+
 export type TChatProject = {
   _id: string;
   name: string;
@@ -325,6 +333,7 @@ export type TChatProject = {
   fiche?: TChatProjectFiche;
   fileIds?: string[];
   briefs?: TChatProjectBrief[];
+  deliverables?: TChatProjectDeliverable[];
   createdAt: string;
   updatedAt: string;
 };

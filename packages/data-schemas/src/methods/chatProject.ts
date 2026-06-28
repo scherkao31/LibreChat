@@ -6,6 +6,7 @@ import { escapeRegExp } from '~/utils/string';
 import type {
   IChatProject,
   IChatProjectBrief,
+  IChatProjectDeliverable,
   IChatProjectDocument,
   IChatProjectFiche,
   IConversation,
@@ -23,6 +24,7 @@ export type UpdateChatProjectInput = Partial<CreateChatProjectInput> & {
   fiche?: IChatProjectFiche;
   fileIds?: string[];
   briefs?: IChatProjectBrief[];
+  deliverables?: IChatProjectDeliverable[];
 };
 
 const FICHE_SECTIONS = new Set(['decision', 'open', 'deadline', 'action', 'info']);
@@ -55,6 +57,19 @@ function sanitizeBriefs(briefs: IChatProjectBrief[]): IChatProjectBrief[] {
       id: String(brief.id ?? ''),
       text: String(brief.text).slice(0, 20000),
       createdAt: brief.createdAt ?? new Date(),
+    }));
+}
+
+/** Assainit les livrables ranges (cap a 100, longueurs). Le plus recent reste en tete. */
+function sanitizeDeliverables(deliverables: IChatProjectDeliverable[]): IChatProjectDeliverable[] {
+  const list = Array.isArray(deliverables) ? deliverables.slice(0, 100) : [];
+  return list
+    .filter((item) => item && typeof item.content === 'string' && item.content.trim())
+    .map((item) => ({
+      id: String(item.id ?? ''),
+      title: String(item.title ?? '').slice(0, 200),
+      content: String(item.content).slice(0, 20000),
+      createdAt: item.createdAt ?? new Date(),
     }));
 }
 
@@ -382,7 +397,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
 
     const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
     const update: Partial<
-      Pick<IChatProject, 'name' | 'description' | 'fiche' | 'fileIds' | 'briefs'>
+      Pick<IChatProject, 'name' | 'description' | 'fiche' | 'fileIds' | 'briefs' | 'deliverables'>
     > = {};
     if (typeof input.name === 'string') {
       const name = input.name.trim().slice(0, 100);
@@ -404,6 +419,9 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     }
     if (input.briefs !== undefined) {
       update.briefs = sanitizeBriefs(input.briefs);
+    }
+    if (input.deliverables !== undefined) {
+      update.deliverables = sanitizeDeliverables(input.deliverables);
     }
 
     return await ChatProject.findOneAndUpdate(
