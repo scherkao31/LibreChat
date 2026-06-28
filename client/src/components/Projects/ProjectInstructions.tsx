@@ -30,7 +30,7 @@ export default function ProjectInstructions({ project }: { project: TChatProject
   };
 
   return (
-    <section className="mt-4 rounded-2xl border border-border-light bg-surface-secondary p-5">
+    <section className="mt-4 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-[13px] font-medium uppercase tracking-wider text-text-secondary">
           Instructions
@@ -54,7 +54,7 @@ export default function ProjectInstructions({ project }: { project: TChatProject
         rows={3}
         placeholder="Contexte permanent du dossier : de quoi il s'agit, le ton attendu, ce qu'il faut toujours garder en tête. L'IA en tiendra compte dans toutes les discussions du dossier."
         className={cn(
-          'w-full resize-y rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm leading-relaxed text-text-primary',
+          'w-full resize-y rounded-xl border border-border-light bg-surface-secondary px-3 py-2 text-sm leading-relaxed text-text-primary',
           'placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none focus:ring-0',
         )}
       />

@@ -55,7 +55,7 @@ export default function LancyaStarters() {
               key={s.title}
               type="button"
               onClick={() => submitMessage({ text: s.prompt })}
-              className="flex items-start gap-3 rounded-xl border border-border-light bg-surface-secondary px-3.5 py-3 text-left transition-colors hover:bg-surface-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy"
+              className="group flex items-start gap-3 rounded-2xl border border-border-light bg-surface-primary px-4 py-3.5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border-medium hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
             >
               <Icon size={18} className="mt-0.5 shrink-0 text-text-secondary" aria-hidden="true" />
               <div className="min-w-0">

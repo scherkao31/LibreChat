@@ -86,7 +86,7 @@ export default function ProjectFiche({ project }: { project: TChatProject }) {
   const isEmpty = items.length === 0 && !summary.trim();
 
   return (
-    <section className="mt-6 rounded-2xl border border-border-light bg-surface-secondary p-5">
+    <section className="mt-6 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-[13px] font-medium uppercase tracking-wider text-text-secondary">
           Fiche du projet

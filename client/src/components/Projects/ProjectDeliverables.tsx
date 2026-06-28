@@ -52,7 +52,7 @@ export default function ProjectDeliverables({ project }: { project: TChatProject
   };
 
   return (
-    <section className="mt-4 rounded-2xl border border-border-light bg-surface-secondary p-5">
+    <section className="mt-4 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
       <h2 className="mb-3 text-[13px] font-medium uppercase tracking-wider text-text-secondary">
         Livrables
       </h2>

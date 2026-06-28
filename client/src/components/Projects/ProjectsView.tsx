@@ -102,7 +102,7 @@ export default function ProjectsView() {
   };
 
   return (
-    <main className="flex h-full min-h-0 flex-col overflow-auto bg-surface-primary text-text-primary">
+    <main className="flex h-full min-h-0 flex-col overflow-auto bg-presentation text-text-primary">
       <div className="container mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8 md:px-6 lg:pt-12">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -189,8 +189,8 @@ export default function ProjectsView() {
                   key={project._id}
                   type="button"
                   className={cn(
-                    'group/project flex min-h-[8.5rem] flex-col rounded-xl border border-border-medium bg-surface-secondary p-4 text-left transition-colors',
-                    'hover:border-border-heavy hover:bg-surface-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary',
+                    'group/project flex min-h-[8.5rem] flex-col rounded-2xl border border-border-light bg-surface-primary p-5 text-left shadow-sm transition-all duration-200',
+                    'hover:-translate-y-0.5 hover:border-border-medium hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary',
                   )}
                   onClick={() => navigate(`/projects/${project._id}`)}
                 >
