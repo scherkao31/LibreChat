@@ -303,7 +303,7 @@ export default function AgentConfig() {
           <button
             type="button"
             onClick={() => setActivePanel(Panel.model)}
-            className="btn btn-neutral border-token-border-light relative h-9 w-full rounded-lg font-medium"
+            className="btn relative h-9 w-full rounded-lg border border-border-light bg-surface-primary font-medium transition-colors hover:border-border-medium"
           >
             <div className="flex w-full items-center gap-2">
               {Icon && (
@@ -414,7 +414,7 @@ export default function AgentConfig() {
                 <button
                   type="button"
                   onClick={() => setShowSkillDialog(true)}
-                  className="btn btn-neutral border-token-border-light relative h-9 w-full rounded-lg font-medium"
+                  className="btn relative h-9 w-full rounded-lg border border-border-light bg-surface-primary font-medium transition-colors hover:border-border-medium"
                   aria-haspopup="dialog"
                   disabled={skillsActive !== true}
                 >
@@ -478,7 +478,7 @@ export default function AgentConfig() {
                 <button
                   type="button"
                   onClick={() => setShowToolDialog(true)}
-                  className="btn btn-neutral border-token-border-light relative h-9 w-full rounded-lg font-medium"
+                  className="btn relative h-9 w-full rounded-lg border border-border-light bg-surface-primary font-medium transition-colors hover:border-border-medium"
                   aria-haspopup="dialog"
                 >
                   <div className="flex w-full items-center justify-center gap-2">
@@ -491,7 +491,7 @@ export default function AgentConfig() {
                   type="button"
                   disabled={isEphemeralAgent(agent_id)}
                   onClick={handleAddActions}
-                  className="btn btn-neutral border-token-border-light relative h-9 w-full rounded-lg font-medium"
+                  className="btn relative h-9 w-full rounded-lg border border-border-light bg-surface-primary font-medium transition-colors hover:border-border-medium"
                   aria-haspopup="dialog"
                 >
                   <div className="flex w-full items-center justify-center gap-2">
