@@ -17,6 +17,7 @@ import ProjectBriefs from './ProjectBriefs';
 import ProjectDocuments from './ProjectDocuments';
 import ProjectInstructions from './ProjectInstructions';
 import ProjectDeliverables from './ProjectDeliverables';
+import ProjectFollowedThreads from './ProjectFollowedThreads';
 import store from '~/store';
 
 type ChatSortField = 'updatedAt' | 'createdAt';
@@ -176,6 +177,8 @@ export default function ProjectWorkspace() {
             {localize('com_ui_new_chat_in_project', { name: project.name })}
           </span>
         </button>
+
+        <ProjectFollowedThreads project={project} />
 
         <ProjectBriefs project={project} />
 

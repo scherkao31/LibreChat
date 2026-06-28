@@ -322,6 +322,16 @@ export type TChatProjectDeliverable = {
   createdAt?: string;
 };
 
+/** Un fil email suivi dans le dossier : pointeur vers une discussion, relu a la demande. */
+export type TChatProjectFollowedThread = {
+  id: string;
+  subject: string;
+  from?: string;
+  messageId?: string;
+  note?: string;
+  createdAt?: string;
+};
+
 export type TChatProject = {
   _id: string;
   name: string;
@@ -334,6 +344,7 @@ export type TChatProject = {
   fileIds?: string[];
   briefs?: TChatProjectBrief[];
   deliverables?: TChatProjectDeliverable[];
+  followedThreads?: TChatProjectFollowedThread[];
   instructions?: string;
   createdAt: string;
   updatedAt: string;
