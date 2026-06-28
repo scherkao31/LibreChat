@@ -561,6 +561,59 @@ router.post('/:projectId/deliverables', async (req, res) => {
   }
 });
 
+/**
+ * Memoire du dossier dictee : ajoute a la fiche des elements VALIDES (l'user a demande de les
+ * retenir, via un bloc lancya_fiche). Dedup par texte (les re-rendus du widget ne creent pas
+ * de doublons). Renvoie le projet mis a jour.
+ */
+router.post('/:projectId/fiche-items', async (req, res) => {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  const { projectId } = req.params;
+  const incoming = (Array.isArray(req.body?.items) ? req.body.items : [])
+    .filter((item) => item && typeof item.text === 'string' && item.text.trim())
+    .slice(0, 10);
+  if (incoming.length === 0) {
+    return res.status(400).json({ error: 'items required' });
+  }
+  try {
+    const project = await db.getChatProject(userId, projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const existing = Array.isArray(project.fiche?.items) ? project.fiche.items : [];
+    const seen = new Set(existing.map((item) => String(item.text).trim().toLowerCase()));
+    const stamp = Date.now();
+    const toAdd = [];
+    incoming.forEach((item, idx) => {
+      const text = String(item.text).trim().slice(0, 2000);
+      const key = text.toLowerCase();
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      toAdd.push({
+        id: `m-${stamp}-${idx}`,
+        section: FICHE_SECTIONS.includes(item.section) ? item.section : 'info',
+        text,
+        source: 'Noté en discussion',
+        status: 'validated',
+      });
+    });
+    if (toAdd.length === 0) {
+      return res.status(200).json(project);
+    }
+    const fiche = {
+      summary: project.fiche?.summary || '',
+      items: [...existing, ...toAdd],
+    };
+    const updated = await db.updateChatProject(userId, projectId, { fiche });
+    return res.status(200).json(updated);
+  } catch (error) {
+    logger.error('[projects] Error adding fiche items', error);
+    return res.status(500).json({ error: 'Error adding fiche items' });
+  }
+});
+
 router.get('/:projectId', handlers.getProject);
 router.patch('/:projectId', handlers.updateProject);
 router.delete('/:projectId', handlers.deleteProject);

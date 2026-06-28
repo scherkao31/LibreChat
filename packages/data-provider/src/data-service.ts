@@ -851,6 +851,14 @@ export function addProjectDeliverable(
   return request.post(endpoints.projectDeliverables(projectId), { content, title });
 }
 
+/** Memoire dictee : ajoute des elements valides a la fiche (bloc lancya_fiche) ; renvoie le projet. */
+export function addProjectFicheItems(
+  projectId: string,
+  items: Array<{ section?: string; text: string }>,
+): Promise<t.TChatProject> {
+  return request.post(endpoints.projectFicheItems(projectId), { items });
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {

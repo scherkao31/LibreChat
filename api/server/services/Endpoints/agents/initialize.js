@@ -300,14 +300,22 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
           requestFiles.push(...projectFiles);
         }
       }
-      // Instructions du projet : contexte permanent du dossier, ajoute aux instructions de
-      // l'agent (additional_instructions arrive dans le systeme). Vaut pour chaque tour.
-      const projectInstructions =
-        typeof project?.instructions === 'string' ? project.instructions.trim() : '';
-      if (projectInstructions && primaryAgent) {
+      // Ajout aux instructions de l'agent (additional_instructions arrive dans le systeme,
+      // preserve par buildAgentAdditionalInstructions) : (1) la capacite « memoire du dossier »
+      // -> sur demande explicite, l'IA emet un bloc lancya_fiche que le front range dans la
+      // fiche ; (2) les instructions propres au dossier, si definies. Vaut a chaque tour.
+      if (primaryAgent) {
+        const ficheCapability =
+          `MEMOIRE DU DOSSIER : ce dossier de travail a une fiche (sa memoire structuree). Quand l'utilisateur te demande EXPLICITEMENT de retenir, noter ou sauvegarder une information dans le dossier (par ex. « retiens que... », « note ca dans le dossier », « sauvegarde cette info »), confirme en une phrase, PUIS ajoute un bloc de code dont le langage est exactement « lancya_fiche » contenant un JSON : {"section":"decision|deadline|open|action|info","text":"l'information a retenir, reformulee clairement et de facon autonome"}. Un bloc par information (plusieurs blocs si plusieurs infos). N'emets ce bloc QUE sur demande explicite de memorisation, jamais spontanement.`;
+        const projectInstructions =
+          typeof project?.instructions === 'string' ? project.instructions.trim() : '';
+        const extras = [ficheCapability];
+        if (projectInstructions) {
+          extras.push(`Contexte du dossier de travail en cours :\n${projectInstructions}`);
+        }
         primaryAgent.additional_instructions = [
           primaryAgent.additional_instructions ?? '',
-          `Contexte du dossier de travail en cours :\n${projectInstructions}`,
+          ...extras,
         ]
           .filter(Boolean)
           .join('\n\n');
