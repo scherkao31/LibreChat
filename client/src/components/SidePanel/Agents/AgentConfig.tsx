@@ -40,7 +40,7 @@ import MCPTools from './MCPTools';
 const labelClass = 'mb-2 text-token-text-primary block text-sm font-medium';
 const inputClass = cn(
   defaultTextProps,
-  'flex w-full px-3 py-2 border-border-light bg-surface-secondary focus-visible:ring-2 focus-visible:ring-ring-primary',
+  'flex w-full px-3 py-2 border-border-light bg-surface-primary focus-visible:ring-2 focus-visible:ring-ring-primary',
   removeFocusOutlines,
 );
 
