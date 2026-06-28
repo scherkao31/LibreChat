@@ -495,8 +495,11 @@ export function useMCPServerManager({
           action: 'install',
           auth: authData,
         };
-        updateUserPluginsMutation.mutate(payload);
+        // Return the promise so callers can await the save before initializing the server
+        // (the single "Connecter" button saves then initializes in one click).
+        return updateUserPluginsMutation.mutateAsync(payload);
       }
+      return Promise.resolve();
     },
     [selectedToolForConfig, updateUserPluginsMutation],
   );
@@ -532,8 +535,9 @@ export function useMCPServerManager({
   const handleSave = useCallback(
     (authData: Record<string, string>) => {
       if (selectedToolForConfig) {
-        handleConfigSave(selectedToolForConfig.name, authData);
+        return handleConfigSave(selectedToolForConfig.name, authData);
       }
+      return Promise.resolve();
     },
     [selectedToolForConfig, handleConfigSave],
   );

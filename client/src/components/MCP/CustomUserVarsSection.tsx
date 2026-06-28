@@ -8,7 +8,7 @@ import {
   CONFIG_HTML_CLASS_ATTR,
   createConfigHtmlSanitizer,
 } from '~/utils/configHtml';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useMCPServerManager } from '~/hooks';
 
 export interface CustomUserVarConfig {
   title: string;
@@ -20,9 +20,11 @@ export interface CustomUserVarConfig {
 interface CustomUserVarsSectionProps {
   serverName: string;
   fields: Record<string, CustomUserVarConfig>;
-  onSave: (authData: Record<string, string>) => void;
+  onSave: (authData: Record<string, string>) => void | Promise<void>;
   onRevoke: () => void;
   isSubmitting?: boolean;
+  conversationId?: string | null;
+  storageContextKey?: string;
 }
 interface AuthFieldProps {
   name: string;
@@ -78,7 +80,7 @@ function AuthField({ name, config, hasValue, control, errors, autoFocus }: AuthF
             ? localize('com_ui_mcp_update_var', { 0: config.title })
             : localize('com_ui_mcp_enter_var', { 0: config.title });
           const className =
-            'w-full rounded border border-border-medium bg-transparent px-2 py-1 text-text-primary placeholder:text-text-secondary focus:outline-none sm:text-sm';
+            'w-full rounded-xl border border-border-light bg-surface-primary px-3 py-2.5 text-sm text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none';
           // Prevent autofill: browser DOM mutations bypass React's synthetic
           // onChange, silently emptying react-hook-form state on submit.
           const sharedProps = {
@@ -115,8 +117,13 @@ export default function CustomUserVarsSection({
   onRevoke,
   serverName,
   isSubmitting = false,
+  conversationId,
+  storageContextKey,
 }: CustomUserVarsSectionProps) {
-  const localize = useLocalize();
+  const { initializeServer, isInitializing } = useMCPServerManager({
+    conversationId,
+    storageContextKey,
+  });
 
   const { data: authValuesData } = useMCPAuthValuesQuery(serverName, {
     enabled: !!serverName,
@@ -137,8 +144,21 @@ export default function CustomUserVarsSection({
     }, [fields]),
   });
 
-  const onFormSubmit = (data: Record<string, string>) => {
-    onSave(data);
+  // Single "Connecter" action: save the credentials, then initialize the server in the
+  // same click. We await the save so the server initializes with the freshly stored
+  // credentials (otherwise it would try to connect with none). If the fields are left
+  // empty (e.g. reopening an already-connected server), skip the save so we don't wipe
+  // the stored credentials, and just re-initialize.
+  const onFormSubmit = async (data: Record<string, string>) => {
+    const hasInput = Object.values(data).some((value) => value.trim() !== '');
+    if (hasInput) {
+      try {
+        await onSave(data);
+      } catch {
+        return;
+      }
+    }
+    await initializeServer(serverName, false);
   };
 
   const handleRevokeClick = () => {
@@ -149,6 +169,9 @@ export default function CustomUserVarsSection({
   if (!fields || Object.keys(fields).length === 0) {
     return null;
   }
+
+  const busy = isSubmitting || isInitializing(serverName);
+  const hasStoredValue = Object.values(authValuesData?.authValueFlags ?? {}).some(Boolean);
 
   return (
     <div className="flex-1 space-y-4">
@@ -171,23 +194,26 @@ export default function CustomUserVarsSection({
         })}
       </form>
 
-      <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={isSubmitting}
-          onClick={handleRevokeClick}
-        >
-          {localize('com_ui_revoke')}
-        </Button>
+      <div className="space-y-2.5">
         <Button
           type="button"
           variant="submit"
-          disabled={isSubmitting}
+          disabled={busy}
           onClick={handleSubmit(onFormSubmit)}
+          className="w-full justify-center"
         >
-          {isSubmitting ? localize('com_ui_saving') : localize('com_ui_save')}
+          {busy ? 'Connexion…' : 'Connecter'}
         </Button>
+        {hasStoredValue && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleRevokeClick}
+            className="mx-auto block text-xs text-text-secondary transition-colors hover:text-text-primary hover:underline disabled:opacity-50"
+          >
+            Se déconnecter
+          </button>
+        )}
       </div>
     </div>
   );
