@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
-import { MCPIcon, AttachmentIcon, OpenAIMinimalIcon } from '@librechat/client';
+import { OpenAIMinimalIcon } from '@librechat/client';
 import {
   Bot,
   Brain,
   Bookmark,
-  NotebookPen,
+  Files,
+  Plug,
+  LayoutTemplate,
   ScrollText,
   ArrowRightToLine,
   SlidersHorizontal,
@@ -144,7 +146,7 @@ export default function useSideNavLinks({
       links.push({
         title: 'com_ui_prompts',
         label: '',
-        icon: NotebookPen,
+        icon: LayoutTemplate,
         id: 'prompts',
         Component: PromptsAccordion,
       });
@@ -173,7 +175,7 @@ export default function useSideNavLinks({
     links.push({
       title: 'com_sidepanel_attach_files',
       label: '',
-      icon: AttachmentIcon,
+      icon: Files,
       id: 'files',
       Component: FilesPanel,
     });
@@ -200,7 +202,7 @@ export default function useSideNavLinks({
       links.push({
         title: 'com_nav_setting_mcp',
         label: '',
-        icon: MCPIcon,
+        icon: Plug,
         id: 'mcp-builder',
         Component: MCPBuilderPanel,
       });
