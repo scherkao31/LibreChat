@@ -127,8 +127,8 @@ export default function ProjectsView() {
                 <Ariakit.MenuButton
                   aria-label={localize('com_ui_sort_projects_by')}
                   className={cn(
-                    'inline-flex h-10 items-center justify-between gap-2 whitespace-nowrap rounded-lg border border-border-medium bg-surface-secondary px-3 text-sm font-medium text-text-primary transition-colors hover:bg-surface-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary disabled:pointer-events-none disabled:opacity-50 sm:w-44',
-                    isSortMenuOpen && 'bg-surface-hover text-text-primary',
+                    'inline-flex h-10 items-center justify-between gap-2 whitespace-nowrap rounded-xl border border-border-light bg-surface-primary px-3.5 text-sm font-medium text-text-primary shadow-sm transition-colors hover:border-border-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary disabled:pointer-events-none disabled:opacity-50 sm:w-44',
+                    isSortMenuOpen && 'border-border-medium',
                   )}
                 >
                   <span className="flex min-w-0 items-center gap-2">
@@ -160,11 +160,11 @@ export default function ProjectsView() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={localize('com_ui_search_projects')}
-              className="border-border-medium bg-surface-secondary pl-9 text-text-primary placeholder:text-text-secondary focus-visible:ring-2 focus-visible:ring-ring-primary"
+              className="rounded-xl border-border-light bg-surface-primary pl-9 text-text-primary shadow-sm placeholder:text-text-secondary focus-visible:ring-2 focus-visible:ring-ring-primary"
             />
           </label>
           <div className="flex items-center">
-            <span className="rounded-full bg-surface-active-alt px-4 py-2 text-sm font-medium text-text-primary">
+            <span className="rounded-full border border-border-light bg-surface-primary px-3.5 py-1.5 text-[13px] font-medium text-text-primary shadow-sm">
               {localize('com_ui_your_projects')}
             </span>
           </div>
@@ -189,31 +189,31 @@ export default function ProjectsView() {
                   key={project._id}
                   type="button"
                   className={cn(
-                    'group/project flex min-h-[8.5rem] flex-col rounded-2xl border border-border-light bg-surface-primary p-5 text-left shadow-sm transition-all duration-200',
+                    'group/project flex items-center gap-3.5 rounded-2xl border border-border-light bg-surface-primary p-4 text-left shadow-sm transition-all duration-200',
                     'hover:-translate-y-0.5 hover:border-border-medium hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary',
                   )}
                   onClick={() => navigate(`/projects/${project._id}`)}
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Folder className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden="true" />
-                    <span className="truncate text-base font-semibold text-text-primary">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-secondary text-text-secondary">
+                    <Folder className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-medium text-text-primary">
                       {project.name}
                     </span>
-                  </span>
-                  {project.description ? (
-                    <span className="mt-2 line-clamp-2 text-sm leading-relaxed text-text-secondary">
-                      {project.description}
-                    </span>
-                  ) : null}
-                  <span className="mt-auto flex items-center justify-between gap-2 pt-4 text-xs text-text-secondary">
-                    <span>
+                    {project.description ? (
+                      <span className="mt-0.5 block truncate text-[13px] leading-relaxed text-text-secondary">
+                        {project.description}
+                      </span>
+                    ) : null}
+                    <span className="mt-0.5 block truncate text-[12.5px] text-text-tertiary">
                       {project.conversationCount === 1
                         ? localize('com_ui_project_chat_count_single')
                         : localize('com_ui_project_chat_count', {
                             count: project.conversationCount,
                           })}
+                      {activity ? ` · ${activity}` : ''}
                     </span>
-                    {activity ? <span className="shrink-0 truncate">{activity}</span> : null}
                   </span>
                 </button>
               );
