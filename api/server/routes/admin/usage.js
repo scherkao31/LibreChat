@@ -69,7 +69,7 @@ router.get('/', async (req, res) => {
     // Activation + retention (cumul) : jours distincts d'activite par compte.
     const ret = (
       await Message.aggregate([
-        { $match: notAdminMsg },
+        { $match: { ...notAdminMsg, createdAt: { $type: 'date' } } },
         { $group: { _id: { u: '$user', d: dayExpr } } },
         { $group: { _id: '$_id.u', days: { $sum: 1 } } },
         {
@@ -84,7 +84,9 @@ router.get('/', async (req, res) => {
     )[0] || { activated: 0, ret2: 0, ret3: 0 };
 
     // Messages par jour (filtre periode).
-    const msgMatch = since ? { ...notAdminMsg, createdAt: { $gte: since } } : notAdminMsg;
+    const msgMatch = since
+      ? { ...notAdminMsg, createdAt: { $gte: since } }
+      : { ...notAdminMsg, createdAt: { $type: 'date' } };
     const msgByDay = await Message.aggregate([
       { $match: msgMatch },
       { $group: { _id: dayExpr, c: { $sum: 1 } } },
@@ -100,7 +102,7 @@ router.get('/', async (req, res) => {
 
     // Nouveaux inscrits par jour (tous), puis affichage filtre sur la periode.
     const signupByDay = await User.aggregate([
-      { $match: notAdminUser },
+      { $match: { ...notAdminUser, createdAt: { $type: 'date' } } },
       { $group: { _id: dayExpr, c: { $sum: 1 } } },
     ]);
     const signupMap = {};
