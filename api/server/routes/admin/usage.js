@@ -39,6 +39,11 @@ function daysBetween(startKey, endKey) {
   return out;
 }
 
+/** Nombre de jours entre deux cles 'YYYY-MM-DD' (de a vers b). */
+function dayDiff(a, b) {
+  return Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / DAY_MS);
+}
+
 const dayExpr = { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: TZ } };
 
 router.get('/', async (req, res) => {
@@ -73,7 +78,7 @@ router.get('/', async (req, res) => {
     ]);
     const perUser = {};
     perUserAgg.forEach((r) => {
-      perUser[r._id] = { count: r.count, days: Array.isArray(r.days) ? r.days.length : 0 };
+      perUser[r._id] = { count: r.count, dayList: Array.isArray(r.days) ? r.days : [] };
     });
 
     // Comptes (hors admin) avec leur date d'inscription, pour les cohortes et profils.
@@ -158,13 +163,20 @@ router.get('/', async (req, res) => {
     const nowMs = now.getTime();
     const profiles = usersList.map((u) => {
       const id = String(u._id);
-      const pu = perUser[id] || { count: 0, days: 0 };
+      const pu = perUser[id] || { count: 0, dayList: [] };
       const credits = balanceByUser[id] != null ? balanceByUser[id] : START_BALANCE;
       const consumed = Math.max(0, START_BALANCE - credits);
+      const signupDay = u.createdAt instanceof Date ? dayKey(u.createdAt) : null;
+      // maxOffset = nb de jours entre l'inscription et le DERNIER jour actif (-1 si jamais actif).
+      const maxOffset =
+        signupDay && pu.dayList.length
+          ? Math.max(...pu.dayList.map((d) => dayDiff(signupDay, d)))
+          : -1;
       return {
         ageDays: u.createdAt instanceof Date ? (nowMs - u.createdAt.getTime()) / DAY_MS : null,
         messages: pu.count,
-        activeDays: pu.days,
+        activeDays: pu.dayList.length,
+        maxOffset,
         consumed,
         usedPct: (consumed / START_BALANCE) * 100,
       };
@@ -172,13 +184,17 @@ router.get('/', async (req, res) => {
     const activatedProfiles = profiles.filter((p) => p.messages > 0);
     const activated = activatedProfiles.length;
 
-    // Retention par COHORTE : denominateur = comptes assez vieux pour avoir eu la chance de revenir.
-    const eligible2 = profiles.filter((p) => p.ageDays != null && p.ageDays >= 2);
-    const eligible3 = profiles.filter((p) => p.ageDays != null && p.ageDays >= 3);
+    // Retention par COHORTE J1/J7/J30 : denominateur = comptes inscrits il y a >= N jours
+    // (ceux qui ont eu la chance de revenir) ; retenu = actif a J >= N apres l'inscription.
+    const cohort = (n) => {
+      const elig = profiles.filter((p) => p.ageDays != null && p.ageDays >= n);
+      return { base: elig.length, count: elig.filter((p) => p.maxOffset >= n).length };
+    };
     const retention = {
       activated: { base: totalUsers, count: activated },
-      ret2: { base: eligible2.length, count: eligible2.filter((p) => p.activeDays >= 2).length },
-      ret3: { base: eligible3.length, count: eligible3.filter((p) => p.activeDays >= 3).length },
+      j1: cohort(1),
+      j7: cohort(7),
+      j30: cohort(30),
     };
 
     // Profondeur d'engagement : repartition des messages par compte activé.

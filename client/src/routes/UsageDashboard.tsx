@@ -35,8 +35,9 @@ type Stats = {
   };
   retention: {
     activated: { base: number; count: number };
-    ret2: { base: number; count: number };
-    ret3: { base: number; count: number };
+    j1: { base: number; count: number };
+    j7: { base: number; count: number };
+    j30: { base: number; count: number };
   };
   engagement: Bucket[];
   activeDays: Bucket[];
@@ -123,15 +124,30 @@ function StatBar({
 }
 
 function DailyChart({ data }: { data: Daily[] }) {
+  const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => d.count));
+  const active = hover != null ? data[hover] : null;
   return (
-    <>
+    <div className="relative">
+      <div className="mb-1 h-4 text-center text-xs">
+        {active ? (
+          <span className="font-medium text-text-primary">
+            {active.date} : {fmt(active.count)}
+          </span>
+        ) : (
+          <span className="text-text-tertiary">Survolez une barre pour voir le nombre</span>
+        )}
+      </div>
       <div className="flex h-28 items-end gap-1">
-        {data.map((d) => (
+        {data.map((d, i) => (
           <div
             key={d.date}
-            title={`${d.date} : ${d.count}`}
-            className="min-h-[2px] flex-1 rounded-t bg-text-primary opacity-70"
+            onMouseEnter={() => setHover(i)}
+            onMouseLeave={() => setHover((h) => (h === i ? null : h))}
+            className={cn(
+              'min-h-[2px] flex-1 cursor-default rounded-t bg-text-primary transition-opacity',
+              hover === i ? 'opacity-100' : 'opacity-60',
+            )}
             style={{ height: `${(d.count / max) * 100}%` }}
           />
         ))}
@@ -142,7 +158,7 @@ function DailyChart({ data }: { data: Daily[] }) {
           <span>{data[data.length - 1].date.slice(5)}</span>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -160,6 +176,49 @@ function BucketBars({ buckets, colors }: { buckets: Bucket[]; colors?: string[] 
         />
       ))}
     </>
+  );
+}
+
+/** Une métrique avec son repère marché et un code couleur (vert = au niveau ou mieux,
+ *  orange = en dessous, gris = pas assez de recul). */
+function StdBar({
+  label,
+  count,
+  base,
+  std,
+  stdLabel,
+}: {
+  label: string;
+  count: number;
+  base: number;
+  std: number;
+  stdLabel: string;
+}) {
+  const pct = base ? (count / base) * 100 : 0;
+  const enough = base >= 10;
+  const color = !enough ? '#888780' : pct >= std ? '#1D9E75' : '#BA7517';
+  const verdict = !enough ? 'pas assez de recul' : pct >= std ? 'dans le standard' : 'sous le standard';
+  return (
+    <div className="py-1.5">
+      <div className="flex items-center gap-3">
+        <span className="w-36 shrink-0 text-[13px] text-text-secondary">{label}</span>
+        <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-tertiary">
+          <span
+            className="block h-full rounded-full"
+            style={{ width: `${Math.max(0, Math.min(100, pct))}%`, backgroundColor: color }}
+          />
+        </span>
+        <span className="w-32 shrink-0 text-right text-[13px] font-medium">
+          {enough ? `${Math.round(pct)}%` : '—'}{' '}
+          <span className="font-normal text-text-tertiary">
+            ({fmt(count)}/{fmt(base)})
+          </span>
+        </span>
+      </div>
+      <div className="ml-36 mt-0.5 text-[11px]" style={{ color }}>
+        repère {stdLabel} · {verdict}
+      </div>
+    </div>
   );
 }
 
@@ -258,26 +317,39 @@ export default function UsageDashboard() {
 
             <section>
               <h2 className="mb-1 text-[13px] font-medium text-text-secondary">
-                Activation et rétention
+                Rétention par cohorte
               </h2>
-              <p className="mb-2 text-xs text-text-tertiary">
-                Rétention mesurée seulement sur les comptes assez anciens pour avoir eu la chance de
-                revenir (le dénominateur change selon l'horizon).
+              <p className="mb-3 text-xs text-text-tertiary">
+                Mesurée seulement sur les comptes inscrits depuis assez longtemps pour avoir pu
+                revenir (le dénominateur change selon l'horizon). Vert = au niveau du repère marché
+                ou mieux, orange = en dessous, gris = pas assez de recul. La rétention J7 est le
+                signal le plus prédictif.
               </p>
               <StatBar
                 label="A écrit un message"
                 pct={pctOf(data.retention.activated.count, data.retention.activated.base)}
                 value={`${fmt(data.retention.activated.count)} / ${fmt(data.retention.activated.base)}`}
               />
-              <StatBar
-                label="Revenu un 2e jour"
-                pct={pctOf(data.retention.ret2.count, data.retention.ret2.base)}
-                value={`${fmt(data.retention.ret2.count)} / ${fmt(data.retention.ret2.base)}`}
+              <StdBar
+                label="Rétention J1"
+                count={data.retention.j1.count}
+                base={data.retention.j1.base}
+                std={33}
+                stdLabel="~33%"
               />
-              <StatBar
-                label="Revenu un 3e jour"
-                pct={pctOf(data.retention.ret3.count, data.retention.ret3.base)}
-                value={`${fmt(data.retention.ret3.count)} / ${fmt(data.retention.ret3.base)}`}
+              <StdBar
+                label="Rétention J7"
+                count={data.retention.j7.count}
+                base={data.retention.j7.base}
+                std={20}
+                stdLabel="~18 à 22%"
+              />
+              <StdBar
+                label="Rétention J30"
+                count={data.retention.j30.count}
+                base={data.retention.j30.base}
+                std={9.6}
+                stdLabel="~9,6%"
               />
             </section>
 
