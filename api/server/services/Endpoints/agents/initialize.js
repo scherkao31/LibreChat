@@ -329,6 +329,19 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
             `Fils email suivis dans ce dossier (relis leur dernier etat avec l'outil de messagerie quand l'utilisateur demande des nouvelles) :\n${lines}`,
           );
         }
+        const agendaList = Array.isArray(project?.agendaEvents) ? project.agendaEvents : [];
+        if (agendaList.length > 0) {
+          const agendaLines = agendaList
+            .slice(0, 30)
+            .map((e) => {
+              const when = e?.start ? new Date(e.start).toLocaleString('fr-CH') : '';
+              return `- ${e?.summary ?? ''}${when ? ` (${when})` : ''}${e?.location ? `, ${e.location}` : ''}`;
+            })
+            .join('\n');
+          extras.push(
+            `Rendez-vous de l'agenda rattaches a ce dossier (tu peux t'y referer ; pour les derniers details, l'outil agenda reste disponible) :\n${agendaLines}`,
+          );
+        }
         if (projectInstructions) {
           extras.push(`Contexte du dossier de travail en cours :\n${projectInstructions}`);
         }
