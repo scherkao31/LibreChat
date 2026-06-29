@@ -9,7 +9,10 @@ function RequestPasswordReset() {
   const localize = useLocalize();
   const [params] = useSearchParams();
 
-  const [countdown, setCountdown] = useState<number>(3);
+  // Demarre a 0 : la redirection n'est lancee QUE par countdownRedirect() (succes ou renvoi reussi).
+  // En cas d'echec, countdown reste 0 -> pas de faux « Redirection dans 3 secondes » (qui ne
+  // redirige jamais), et le bouton « renvoyer l'email » s'affiche (il est conditionne a countdown===0).
+  const [countdown, setCountdown] = useState<number>(0);
   const [headerText, setHeaderText] = useState<string>('');
   const [showResendLink, setShowResendLink] = useState<boolean>(false);
   const [verificationStatus, setVerificationStatus] = useState<boolean>(false);

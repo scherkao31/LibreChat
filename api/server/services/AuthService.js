@@ -240,7 +240,9 @@ const sendVerificationEmail = async (user) => {
     type: AuthTokenTypes.EMAIL_VERIFICATION,
     token: hash,
     createdAt: Date.now(),
-    expiresIn: 900,
+    // Lien de verification valable 24 h (expiresIn en SECONDES). Avant : 900s = 15 min, trop court
+    // (mail recu en differe / en spam -> lien deja expire -> ecran "Echec de la verification").
+    expiresIn: 60 * 60 * 24,
   });
 
   logger.info(`[sendVerificationEmail] Verification link issued. [Email: ${user.email}]`);
