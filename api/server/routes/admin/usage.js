@@ -1,7 +1,7 @@
 const express = require('express');
 const { logger } = require('@librechat/data-schemas');
 const { requireJwtAuth } = require('~/server/middleware');
-const { User, Message, Balance } = require('~/db/models');
+const { User, Message, Balance, Transaction } = require('~/db/models');
 
 const router = express.Router();
 
@@ -360,6 +360,123 @@ router.get('/', async (req, res) => {
       medianMessages: Math.round(median(activatedProfiles.map((p) => p.messages))),
     };
 
+    // === BLOC 2 (conversion) + BLOC 6 (revenu) via les transactions de credits ===
+    // Un payant = >=1 transaction tokenType 'credits' (octroi du backend Stripe). Isole dans un
+    // try/catch : si la collection/les champs different, on renvoie null sans casser le reste.
+    let conversion = null;
+    let revenue = null;
+    try {
+      const PRICE_CHF = 17;
+      const grants = await Transaction.find({
+        ...(meId ? { user: { $ne: meId } } : {}),
+        tokenType: 'credits',
+      })
+        .select('user tokenValue rawAmount createdAt')
+        .lean();
+
+      // 1ere conversion par compte (date + plan via le montant : >=10M = premium, sinon pro).
+      const conv = {};
+      grants.forEach((g) => {
+        const amount = Math.max(Number(g.tokenValue) || 0, Number(g.rawAmount) || 0);
+        if (amount <= 0 || !g.createdAt) {
+          return;
+        }
+        const id = String(g.user);
+        const ts = new Date(g.createdAt).getTime();
+        if (!conv[id] || ts < conv[id].date) {
+          conv[id] = { date: ts, plan: amount >= 10000000 ? 'premium' : 'pro' };
+        }
+      });
+      const converterIds = Object.keys(conv);
+      const paidCount = converterIds.length;
+
+      // Conso du gratuit AVANT conversion = somme des |tokenValue| de depense avant la date.
+      const converterObjIds = grants.filter((g) => conv[String(g.user)]).map((g) => g.user);
+      const spend = paidCount
+        ? await Transaction.find({
+            user: { $in: converterObjIds },
+            tokenType: { $in: ['prompt', 'completion'] },
+          })
+            .select('user tokenValue createdAt')
+            .lean()
+        : [];
+      const spentBefore = {};
+      spend.forEach((s) => {
+        const id = String(s.user);
+        const c = conv[id];
+        if (c && s.createdAt && new Date(s.createdAt).getTime() < c.date) {
+          spentBefore[id] = (spentBefore[id] || 0) + Math.abs(Number(s.tokenValue) || 0);
+        }
+      });
+
+      const ttcDays = [];
+      const consoAtConv = [];
+      let exhaustedConverters = 0;
+      converterIds.forEach((id) => {
+        const signup = usersById[id];
+        if (signup != null) {
+          ttcDays.push((conv[id].date - signup) / DAY_MS);
+        }
+        const pct = Math.min(100, ((spentBefore[id] || 0) / START_BALANCE) * 100);
+        consoAtConv.push(pct);
+        if (pct >= 90) {
+          exhaustedConverters += 1;
+        }
+      });
+
+      // Conversion par cohorte mensuelle d'inscription.
+      const monthKey = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: TZ }).slice(0, 7);
+      const cohorts = {};
+      usersList.forEach((u) => {
+        if (!(u.createdAt instanceof Date)) {
+          return;
+        }
+        const k = monthKey(u.createdAt.getTime());
+        if (!cohorts[k]) {
+          cohorts[k] = { signups: 0, converted: 0 };
+        }
+        cohorts[k].signups += 1;
+        if (conv[String(u._id)]) {
+          cohorts[k].converted += 1;
+        }
+      });
+      const byCohort = Object.keys(cohorts)
+        .sort()
+        .map((k) => ({ month: k, signups: cohorts[k].signups, converted: cohorts[k].converted }));
+
+      // Au mur : non-payants a >=90% du gratuit (solde courant) + payants ayant epuise avant de payer.
+      const nonConverterAtWall = profiles.filter((p) => p.usedPct >= 90).length;
+      const atWallTotal = nonConverterAtWall + exhaustedConverters;
+
+      conversion = {
+        paidCount,
+        rate: totalUsers ? Math.round((paidCount / totalUsers) * 1000) / 10 : 0,
+        byPlan: {
+          pro: converterIds.filter((id) => conv[id].plan === 'pro').length,
+          premium: converterIds.filter((id) => conv[id].plan === 'premium').length,
+        },
+        medianTimeToConvDays: Math.round(median(ttcDays) * 10) / 10,
+        medianConsoAtConvPct: Math.round(median(consoAtConv)),
+        atWall: {
+          total: atWallTotal,
+          converted: exhaustedConverters,
+          rate: atWallTotal ? Math.round((exhaustedConverters / atWallTotal) * 1000) / 10 : 0,
+        },
+        byCohort,
+      };
+
+      // BLOC 6 : revenu (ESTIMATION, suppose tous les payants encore actifs ; sans statut d'abonnement).
+      revenue = {
+        payants: paidCount,
+        mrrEstime: paidCount * PRICE_CHF,
+        arpu:
+          totalUsers ? Math.round(((paidCount * PRICE_CHF) / totalUsers) * 100) / 100 : 0,
+        prixMensuel: PRICE_CHF,
+      };
+    } catch (convErr) {
+      logger.warn(`[admin/usage] conversion/revenu indisponible : ${convErr.message}`);
+    }
+
     return res.status(200).json({
       period,
       generatedAt: now.toISOString(),
@@ -371,6 +488,8 @@ router.get('/', async (req, res) => {
         activeInPeriod,
       },
       retention,
+      conversion,
+      revenue,
       deepActivation,
       goldenRule,
       timeToValue,

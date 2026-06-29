@@ -11,6 +11,8 @@ import {
   AlertTriangle,
   RefreshCw,
   Clock,
+  CreditCard,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
@@ -40,6 +42,16 @@ type Stats = {
     j7: { base: number; count: number };
     j30: { base: number; count: number };
   };
+  conversion: {
+    paidCount: number;
+    rate: number;
+    byPlan: { pro: number; premium: number };
+    medianTimeToConvDays: number;
+    medianConsoAtConvPct: number;
+    atWall: { total: number; converted: number; rate: number };
+    byCohort: { month: string; signups: number; converted: number }[];
+  } | null;
+  revenue: { payants: number; mrrEstime: number; arpu: number; prixMensuel: number } | null;
   deepActivation: { base: number; count: number };
   goldenRule: {
     deepBase: number;
@@ -365,6 +377,141 @@ export default function UsageDashboard() {
                 stdLabel="~9,6%"
               />
             </section>
+
+            {data.conversion ? (
+              <section>
+                <h2 className="mb-1 text-[13px] font-medium text-text-secondary">Conversion</h2>
+                <p className="mb-3 text-xs text-text-tertiary">
+                  Un payant = a souscrit (transaction de crédits). Freemium sans expiration : la
+                  conversion médiane arrive entre le 3e et le 6e mois, ne juge pas trop tôt.
+                </p>
+                {(() => {
+                  const c = data.conversion;
+                  if (!c) {
+                    return null;
+                  }
+                  const enough = data.users.total >= 20;
+                  const rateColor = !enough ? '#888780' : c.rate >= 6 ? '#1D9E75' : '#BA7517';
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <Card
+                          icon={<CreditCard size={15} />}
+                          label="Payants"
+                          value={fmt(c.paidCount)}
+                          sub={`${fmt(c.byPlan.pro)} pro · ${fmt(c.byPlan.premium)} premium`}
+                        />
+                        <Card
+                          accent={rateColor}
+                          icon={<TrendingUp size={15} />}
+                          label="Taux de conversion"
+                          value={`${c.rate}%`}
+                          sub="repère 6 à 8% (IA)"
+                        />
+                        <Card
+                          icon={<Coins size={15} />}
+                          label="Conso à la conversion"
+                          value={c.paidCount ? `${c.medianConsoAtConvPct}%` : '—'}
+                          sub="du gratuit (médiane)"
+                        />
+                        <Card
+                          icon={<Clock size={15} />}
+                          label="Délai de conversion"
+                          value={c.paidCount ? `${c.medianTimeToConvDays} j` : '—'}
+                          sub="médiane, inscription vers paiement"
+                        />
+                      </div>
+                      <div className="mt-3 rounded-xl bg-surface-secondary p-4 text-sm leading-relaxed text-text-secondary">
+                        <span className="font-medium text-text-primary">Au mur.</span> Sur{' '}
+                        <span className="font-medium text-text-primary">{fmt(c.atWall.total)}</span>{' '}
+                        comptes ayant atteint 90% du crédit gratuit,{' '}
+                        <span className="font-medium text-text-primary">
+                          {fmt(c.atWall.converted)}
+                        </span>{' '}
+                        sont passés payants, soit{' '}
+                        <span
+                          className="font-medium"
+                          style={{ color: c.atWall.rate >= 5 ? '#1D9E75' : '#BA7517' }}
+                        >
+                          {c.atWall.rate}%
+                        </span>{' '}
+                        (repère 5 à 15% sur déclencheur d'usage).
+                      </div>
+                      {c.byCohort.length > 0 ? (
+                        <div className="mt-4">
+                          <div className="mb-1 text-xs text-text-tertiary">
+                            Conversion par cohorte mensuelle d'inscription
+                          </div>
+                          <table className="w-full text-[13px]">
+                            <thead>
+                              <tr className="text-left text-text-tertiary">
+                                <th className="py-1 font-normal">Mois</th>
+                                <th className="py-1 text-right font-normal">Inscrits</th>
+                                <th className="py-1 text-right font-normal">Payants</th>
+                                <th className="py-1 text-right font-normal">Taux</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {c.byCohort.map((row) => (
+                                <tr key={row.month} className="border-t border-border-light">
+                                  <td className="py-1.5 text-text-secondary">{row.month}</td>
+                                  <td className="py-1.5 text-right">{fmt(row.signups)}</td>
+                                  <td className="py-1.5 text-right">{fmt(row.converted)}</td>
+                                  <td className="py-1.5 text-right font-medium">
+                                    {row.signups
+                                      ? Math.round((row.converted / row.signups) * 1000) / 10
+                                      : 0}
+                                    %
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </section>
+            ) : (
+              <section>
+                <h2 className="mb-1 text-[13px] font-medium text-text-secondary">Conversion</h2>
+                <p className="text-sm text-text-secondary">
+                  Données de conversion indisponibles (aucune transaction de crédits trouvée).
+                </p>
+              </section>
+            )}
+
+            {data.revenue ? (
+              <section>
+                <h2 className="mb-1 text-[13px] font-medium text-text-secondary">
+                  Revenu (estimation)
+                </h2>
+                <p className="mb-3 text-xs text-text-tertiary">
+                  Estimation simple : suppose tous les payants encore actifs (le statut d'abonnement
+                  n'est pas dans les données). À affiner quand la base payante grossit.
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <Card
+                    icon={<CreditCard size={15} />}
+                    label="Payants"
+                    value={fmt(data.revenue.payants)}
+                  />
+                  <Card
+                    icon={<Coins size={15} />}
+                    label="MRR estimé"
+                    value={`${fmt(data.revenue.mrrEstime)} CHF`}
+                    sub={`${data.revenue.prixMensuel} CHF / mois`}
+                  />
+                  <Card
+                    icon={<TrendingUp size={15} />}
+                    label="ARPU"
+                    value={`${data.revenue.arpu} CHF`}
+                    sub="par inscrit"
+                  />
+                </div>
+              </section>
+            ) : null}
 
             <section>
               <h2 className="mb-1 text-[13px] font-medium text-text-secondary">
