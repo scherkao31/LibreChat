@@ -190,6 +190,24 @@ function buildPrintHtml(cleanHtml: string): string {
     : `${PRINT_STYLE}${cleanHtml}`;
 }
 
+/**
+ * Petit champ inline pour un chiffre d'engagement de l'apercu (j'aime, commentaires...) : on clique,
+ * on change la valeur. Controle (pas de saut de curseur), il herite de la typo environnante et se
+ * dimensionne au contenu. Purement cosmetique, jamais exporte dans le carrousel.
+ */
+function StatInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="Modifier la valeur"
+      className="rounded border-0 bg-transparent px-0.5 py-0 text-center align-baseline text-inherit outline-none transition-colors hover:bg-black/[0.06] focus:bg-black/[0.06]"
+      style={{ width: `${Math.max(1, value.length)}ch`, font: 'inherit' }}
+    />
+  );
+}
+
 const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { index: currentIndex, count: slideCount } = useActiveDeckSlide(iframeRef);
@@ -204,6 +222,11 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
   const [platform, setPlatform] = useState<'instagram' | 'linkedin'>('instagram');
   const [caption, setCaption] = useState('');
   const [captionCopied, setCaptionCopied] = useState(false);
+  // Chiffres d'engagement de l'apercu : cosmetiques, editables d'un clic pour une capture credible
+  // (ils ne font PAS partie du carrousel exporte, c'est juste le contour facon post).
+  const [reactions, setReactions] = useState('138');
+  const [comments, setComments] = useState('24');
+  const [likes, setLikes] = useState('1 248');
   const seededRef = useRef(false);
   const captionRef = useRef<HTMLTextAreaElement>(null);
   const { messageId, conversationId, partIndex } = useMessageContext();
@@ -540,8 +563,12 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
             )}
             <div className="flex items-center gap-1.5 px-3.5 pb-2.5 pt-1 text-xs text-[#00000099]">
               <ThumbsUp size={14} className="text-[#0a66c2]" />
-              <span>Vous et 138 autres</span>
-              <span className="ml-auto">24 commentaires</span>
+              <span>
+                Vous et <StatInput value={reactions} onChange={setReactions} /> autres
+              </span>
+              <span className="ml-auto">
+                <StatInput value={comments} onChange={setComments} /> commentaires
+              </span>
             </div>
             <div className="mx-3 border-t border-[#e9e9e7]" />
             <div className="flex items-center justify-around px-1.5 py-1 text-[#00000099]">
@@ -567,7 +594,9 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
               <Send size={24} />
               <Bookmark size={24} className="ml-auto" />
             </div>
-            <div className="px-3.5 pb-0.5 text-sm font-semibold">1 248 j'aime</div>
+            <div className="px-3.5 pb-0.5 text-sm font-semibold">
+              <StatInput value={likes} onChange={setLikes} /> j'aime
+            </div>
             <div className="flex items-baseline gap-1.5 px-3.5 pb-1">
               <span className="shrink-0 text-sm font-semibold">votre_compte</span>
               <textarea
