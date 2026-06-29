@@ -142,15 +142,21 @@ function looksComplete(raw: string): boolean {
   return t.includes('</body>') || t.includes('</html>');
 }
 
-/** Legende suggeree par le modele, via <meta name="lancya-caption" content="..."> */
+/**
+ * Legende suggeree par le modele, via <meta name="lancya-caption" content="...">.
+ * Le content contient des apostrophes (francais : c'est, qu'un, l'humanite...) : on
+ * capture le guillemet ouvrant puis on matche jusqu'au MEME guillemet (backreference),
+ * sinon `[^"']*` couperait la legende a la premiere apostrophe.
+ */
 function parseCaption(raw: string): string {
-  const m = /<meta\s+name=["']lancya-caption["']\s+content=["']([^"']*)["']/i.exec(raw);
+  const m = /<meta\s+name=["']lancya-caption["']\s+content=(["'])([\s\S]*?)\1/i.exec(raw);
   if (!m) {
     return '';
   }
-  return m[1]
+  return m[2]
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
     .replace(/&amp;/g, '&')
     .trim();
 }
