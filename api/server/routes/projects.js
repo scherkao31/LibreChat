@@ -807,13 +807,14 @@ router.post('/:projectId/check-agenda', async (req, res) => {
         })
         .join('\n');
       const system =
-        'Tu selectionnes, parmi une liste de rendez-vous d\'agenda, ceux qui sont LIES a un dossier de travail precis, en t\'appuyant sur le contexte du dossier (nom du client, personnes, lieux, sujets, echeances). Sois SELECTIF : ne garde QUE les rendez-vous clairement lies a ce dossier ; en cas de doute, exclus. Reponds UNIQUEMENT par un JSON {"pertinents": [liste des index lies]}, sans aucun autre texte.';
+        'Tu selectionnes, parmi une liste de rendez-vous d\'agenda, ceux qui ont un lien avec un dossier de travail precis, a partir du contexte du dossier (nom du client, personnes, institution ou organisation, lieux, sujets, demarches, echeances). Inclus un rendez-vous DES QU\'UN LIEN PLAUSIBLE existe (meme institution, meme personne, meme sujet, meme client, meme demarche, ex. « Contacter EPFL » pour un dossier qui concerne l\'EPFL). Exclus uniquement ce qui n\'a manifestement AUCUN rapport (rendez-vous personnels ou sujets etrangers au dossier). Reponds UNIQUEMENT par un JSON {"pertinents": [liste des index lies]}, sans aucun autre texte.';
       const userMsg =
         `Contexte du dossier :\n${projectContextText(project)}\n\n` +
         `Rendez-vous a venir (index : titre — date — lieu) :\n${list}\n\n` +
         `Quels index sont lies a ce dossier ? Reponds {"pertinents": [...]}.`;
       try {
         const llm = await callLancyaModel({ system, user: userMsg, maxTokens: 500, temperature: 0 });
+        logger.info(`[projects] check-agenda LLM brut: ${String(llm ?? '').slice(0, 300)}`);
         const parsed = extractJson(llm);
         const idxSet = new Set(
           (Array.isArray(parsed?.pertinents) ? parsed.pertinents : []).filter((n) =>
@@ -834,6 +835,9 @@ router.post('/:projectId/check-agenda', async (req, res) => {
       }
     }
 
+    logger.info(
+      `[projects] check-agenda: ${allEvents.length} evenement(s) recupere(s), ${selected.length} retenu(s) pour "${project.name}"`,
+    );
     const stamp = Date.now();
     const agendaEvents = selected.slice(0, 50).map((e, i) => ({
       id: `ev-${stamp}-${i}`,
