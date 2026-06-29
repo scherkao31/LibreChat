@@ -5,6 +5,8 @@ const { logger } = require('@librechat/data-schemas');
 const { createProjectHandlers, generateShortLivedToken, logAxiosError } = require('@librechat/api');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
+const { getUserPluginAuthValue } = require('~/server/services/PluginService');
+const { Constants } = require('librechat-data-provider');
 const db = require('~/models');
 
 const router = express.Router();
@@ -18,6 +20,36 @@ const handlers = createProjectHandlers({
 });
 
 const FICHE_SECTIONS = ['decision', 'deadline', 'open', 'action', 'info'];
+
+/**
+ * Appelle un outil d'un connecteur MCP EN DIRECT (HTTP), sans la machinerie agent : un simple
+ * POST tools/call. Le serveur (stateless streamable-http) repond a un appel d'outil sans handshake.
+ * Renvoie le texte du resultat de l'outil (souvent du JSON a parser). Les identifiants de
+ * l'utilisateur passent par les en-tetes (jamais stockes cote connecteur).
+ */
+async function callConnectorTool(url, headers, toolName, args) {
+  const resp = await axios.post(
+    url,
+    { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: toolName, arguments: args } },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        ...headers,
+      },
+      responseType: 'text',
+      timeout: 30000,
+    },
+  );
+  const body = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
+  const line = body.split('\n').find((l) => l.trim().startsWith('data:'));
+  const jsonStr = line ? line.slice(line.indexOf(':') + 1).trim() : body.trim();
+  const payload = JSON.parse(jsonStr);
+  if (payload.error) {
+    throw new Error(payload.error.message || 'Erreur connecteur');
+  }
+  return payload.result?.content?.[0]?.text ?? '';
+}
 
 /** Extrait un objet JSON d'une reponse LLM (tolerant aux ``` et au texte de raisonnement). */
 function extractJson(text) {
@@ -703,6 +735,68 @@ router.post('/:projectId/threads', async (req, res) => {
   } catch (error) {
     logger.error('[projects] Error following thread', error);
     return res.status(500).json({ error: 'Error following thread' });
+  }
+});
+
+/**
+ * « Verifier l'agenda » : appelle le connecteur agenda en direct (list_events filtre sur le nom du
+ * dossier), structure les evenements a venir et les range dans le dossier (agendaEvents). Bouton
+ * declenche par l'utilisateur (rien d'automatique). Renvoie le projet mis a jour.
+ */
+router.post('/:projectId/check-agenda', async (req, res) => {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  const { projectId } = req.params;
+  try {
+    const project = await db.getChatProject(userId, projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const url =
+      req.config?.mcpServers?.agenda?.url || 'https://agenda-mcp-production-9821.up.railway.app/mcp';
+    const mcpKey = `${Constants.mcp_prefix}agenda`;
+    const caldavUser = await getUserPluginAuthValue(userId, 'CALDAV_USER', false, mcpKey);
+    const caldavPass = await getUserPluginAuthValue(userId, 'CALDAV_PASS', false, mcpKey);
+    if (!caldavUser || !caldavPass) {
+      return res.status(400).json({ error: 'Agenda non connecté' });
+    }
+    const resultText = await callConnectorTool(
+      url,
+      {
+        'X-Caldav-User': caldavUser,
+        'X-Caldav-Pass': caldavPass,
+        'X-Caldav-Url': 'https://sync.infomaniak.com/',
+      },
+      'list_events',
+      { query: project.name, daysAhead: 90, limit: 30 },
+    );
+    let raw;
+    try {
+      raw = JSON.parse(resultText);
+    } catch {
+      logger.warn(`[projects] check-agenda: resultat non-JSON: ${String(resultText).slice(0, 200)}`);
+      return res
+        .status(502)
+        .json({ error: String(resultText).slice(0, 300) || 'Réponse agenda invalide' });
+    }
+    const stamp = Date.now();
+    const agendaEvents = (Array.isArray(raw) ? raw : []).slice(0, 50).map((e, i) => ({
+      id: `ev-${stamp}-${i}`,
+      summary: String(e?.summary ?? '').slice(0, 500),
+      start: e?.start ? new Date(e.start) : null,
+      end: e?.end ? new Date(e.end) : null,
+      location: String(e?.location ?? '').slice(0, 500),
+      calendar: String(e?.calendar ?? '').slice(0, 200),
+    }));
+    const updated = await db.updateChatProject(userId, projectId, {
+      agendaEvents,
+      agendaCheckedAt: new Date(),
+    });
+    return res.status(200).json(updated);
+  } catch (error) {
+    logger.error('[projects] check-agenda error', error);
+    return res
+      .status(500)
+      .json({ error: error.message || "Erreur lors de la vérification de l'agenda" });
   }
 });
 

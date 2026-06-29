@@ -49,6 +49,16 @@ export interface IChatProjectFollowedThread {
   createdAt?: Date;
 }
 
+/** Un evenement d'agenda rattache au dossier (recupere via « Verifier l'agenda »). */
+export interface IChatProjectAgendaEvent {
+  id: string;
+  summary: string;
+  start?: Date | null;
+  end?: Date | null;
+  location?: string;
+  calendar?: string;
+}
+
 export interface IChatProject {
   _id?: Types.ObjectId;
   name: string;
@@ -62,6 +72,8 @@ export interface IChatProject {
   briefs?: IChatProjectBrief[];
   deliverables?: IChatProjectDeliverable[];
   followedThreads?: IChatProjectFollowedThread[];
+  agendaEvents?: IChatProjectAgendaEvent[];
+  agendaCheckedAt?: Date | null;
   /** Contexte permanent du dossier, ajoute au prompt dans toutes ses conversations. */
   instructions?: string;
   createdAt?: Date;

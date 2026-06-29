@@ -332,6 +332,16 @@ export type TChatProjectFollowedThread = {
   createdAt?: string;
 };
 
+/** Un evenement d'agenda rattache au dossier (« Verifier l'agenda »). */
+export type TChatProjectAgendaEvent = {
+  id: string;
+  summary: string;
+  start?: string | null;
+  end?: string | null;
+  location?: string;
+  calendar?: string;
+};
+
 export type TChatProject = {
   _id: string;
   name: string;
@@ -345,6 +355,8 @@ export type TChatProject = {
   briefs?: TChatProjectBrief[];
   deliverables?: TChatProjectDeliverable[];
   followedThreads?: TChatProjectFollowedThread[];
+  agendaEvents?: TChatProjectAgendaEvent[];
+  agendaCheckedAt?: string | null;
   instructions?: string;
   createdAt: string;
   updatedAt: string;

@@ -62,6 +62,19 @@ const followedThreadSchema = new Schema(
   { _id: false },
 );
 
+/** Un evenement d'agenda rattache au dossier (recupere via le bouton « Verifier l'agenda »). */
+const agendaEventSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    summary: { type: String, default: '', maxlength: 500 },
+    start: { type: Date, default: null },
+    end: { type: Date, default: null },
+    location: { type: String, default: '', maxlength: 500 },
+    calendar: { type: String, default: '', maxlength: 200 },
+  },
+  { _id: false },
+);
+
 const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectDocument>(
   {
     name: {
@@ -119,6 +132,16 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
     followedThreads: {
       type: [followedThreadSchema],
       default: [],
+    },
+    /** Rendez-vous / echeances de l'agenda rattaches au dossier (bouton « Verifier l'agenda »). */
+    agendaEvents: {
+      type: [agendaEventSchema],
+      default: [],
+    },
+    /** Date du dernier « Verifier l'agenda » sur ce dossier. */
+    agendaCheckedAt: {
+      type: Date,
+      default: null,
     },
     /** Contexte permanent du dossier, injecte dans le prompt de toutes ses conversations. */
     instructions: {

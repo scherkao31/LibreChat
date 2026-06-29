@@ -867,6 +867,11 @@ export function followProjectThread(
   return request.post(endpoints.projectThreads(projectId), thread);
 }
 
+/** « Verifier l'agenda » : recupere les rendez-vous lies au dossier et les range ; renvoie le projet. */
+export function checkProjectAgenda(projectId: string): Promise<t.TChatProject> {
+  return request.post(endpoints.projectCheckAgenda(projectId), {});
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {

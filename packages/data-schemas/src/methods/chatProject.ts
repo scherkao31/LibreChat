@@ -5,6 +5,7 @@ import { buildRetentionVisibilityFilter } from '~/utils/retention';
 import { escapeRegExp } from '~/utils/string';
 import type {
   IChatProject,
+  IChatProjectAgendaEvent,
   IChatProjectBrief,
   IChatProjectDeliverable,
   IChatProjectDocument,
@@ -27,6 +28,8 @@ export type UpdateChatProjectInput = Partial<CreateChatProjectInput> & {
   briefs?: IChatProjectBrief[];
   deliverables?: IChatProjectDeliverable[];
   followedThreads?: IChatProjectFollowedThread[];
+  agendaEvents?: IChatProjectAgendaEvent[];
+  agendaCheckedAt?: Date | null;
   instructions?: string;
 };
 
@@ -90,6 +93,21 @@ function sanitizeFollowedThreads(
       messageId: String(item.messageId ?? '').slice(0, 1000),
       note: String(item.note ?? '').slice(0, 1000),
       createdAt: item.createdAt ?? new Date(),
+    }));
+}
+
+/** Assainit les evenements d'agenda rattaches (cap a 50, longueurs). */
+function sanitizeAgendaEvents(events: IChatProjectAgendaEvent[]): IChatProjectAgendaEvent[] {
+  const list = Array.isArray(events) ? events.slice(0, 50) : [];
+  return list
+    .filter((item) => item && typeof item.summary === 'string')
+    .map((item) => ({
+      id: String(item.id ?? ''),
+      summary: String(item.summary ?? '').slice(0, 500),
+      start: item.start ?? null,
+      end: item.end ?? null,
+      location: String(item.location ?? '').slice(0, 500),
+      calendar: String(item.calendar ?? '').slice(0, 200),
     }));
 }
 
@@ -426,6 +444,8 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
         | 'briefs'
         | 'deliverables'
         | 'followedThreads'
+        | 'agendaEvents'
+        | 'agendaCheckedAt'
         | 'instructions'
       >
     > = {};
@@ -455,6 +475,12 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     }
     if (input.followedThreads !== undefined) {
       update.followedThreads = sanitizeFollowedThreads(input.followedThreads);
+    }
+    if (input.agendaEvents !== undefined) {
+      update.agendaEvents = sanitizeAgendaEvents(input.agendaEvents);
+    }
+    if (input.agendaCheckedAt !== undefined) {
+      update.agendaCheckedAt = input.agendaCheckedAt;
     }
     if (input.instructions !== undefined) {
       update.instructions = String(input.instructions ?? '').slice(0, 4000);
