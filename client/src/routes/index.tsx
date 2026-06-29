@@ -21,6 +21,7 @@ import ShareRoute from './ShareRoute';
 import OuTravailleVotreIA from './OuTravailleVotreIA';
 import ChatRoute from './ChatRoute';
 import Search from './Search';
+import UsageDashboard from './UsageDashboard';
 import Root from './Root';
 
 const AuthLayout = () => (
@@ -140,6 +141,10 @@ export const router = createBrowserRouter(
             {
               path: 'search',
               element: <Search />,
+            },
+            {
+              path: 'admin/usage',
+              element: <UsageDashboard />,
             },
             {
               path: 'prompts',
