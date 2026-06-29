@@ -39,6 +39,17 @@ type Stats = {
     j7: { base: number; count: number };
     j30: { base: number; count: number };
   };
+  deepActivation: { base: number; count: number };
+  goldenRule: {
+    deepBase: number;
+    shallowBase: number;
+    deepJ7Pct: number;
+    shallowJ7Pct: number;
+    ratio: number | null;
+  };
+  signupMethods: { label: string; signups: number; activated: number }[];
+  stickiness: { dau: number; wau: number; mau: number; dauMau: number; wauMau: number };
+  powerUsers: { count: number; pctOfActivated: number; sharePct: number; medianMessages: number };
   engagement: Bucket[];
   activeDays: Bucket[];
   concentration: { topMessagesPct: number; topCreditsPct: number };
@@ -354,6 +365,46 @@ export default function UsageDashboard() {
             </section>
 
             <section>
+              <h2 className="mb-1 text-[13px] font-medium text-text-secondary">
+                Activation approfondie
+              </h2>
+              <p className="mb-3 text-xs text-text-tertiary">
+                Plus exigeant que « a écrit un message » : revenu un 2e jour ET au moins 3 messages.
+              </p>
+              <StatBar
+                label="Activés en profondeur"
+                pct={pctOf(data.deepActivation.count, data.deepActivation.base)}
+                value={`${fmt(data.deepActivation.count)} / ${fmt(data.deepActivation.base)}`}
+              />
+              <div className="mt-3 rounded-xl bg-surface-secondary p-4 text-sm leading-relaxed text-text-secondary">
+                <span className="font-medium text-text-primary">Règle d'or.</span> Les comptes
+                activés en profondeur reviennent à J7 à{' '}
+                <span className="font-medium text-text-primary">{data.goldenRule.deepJ7Pct}%</span>,
+                contre{' '}
+                <span className="font-medium text-text-primary">
+                  {data.goldenRule.shallowJ7Pct}%
+                </span>{' '}
+                pour les autres
+                {data.goldenRule.ratio != null ? (
+                  <>
+                    {' '}
+                    (soit{' '}
+                    <span
+                      className="font-medium"
+                      style={{ color: data.goldenRule.ratio >= 2 ? '#1D9E75' : '#BA7517' }}
+                    >
+                      {data.goldenRule.ratio}x
+                    </span>{' '}
+                    {data.goldenRule.ratio >= 2 ? 'mieux, sain' : 'mieux, sous la cible de 2x'})
+                  </>
+                ) : (
+                  ' (pas assez de recul pour le ratio)'
+                )}
+                .
+              </div>
+            </section>
+
+            <section>
               <h2 className="mb-2 text-[13px] font-medium text-text-secondary">
                 Profondeur d'engagement (messages par compte activé)
               </h2>
@@ -365,6 +416,61 @@ export default function UsageDashboard() {
                 Régularité (jours actifs distincts par compte activé)
               </h2>
               <BucketBars buckets={data.activeDays} />
+            </section>
+
+            <section>
+              <h2 className="mb-1 text-[13px] font-medium text-text-secondary">
+                Engagement et stickiness
+              </h2>
+              <p className="mb-3 text-xs text-text-tertiary">
+                Stickiness = part des actifs du mois qui reviennent dans la journée / la semaine.
+                Repère B2B environ 20%, outil consulté au quotidien 50% et plus.
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Card
+                  icon={<Activity size={15} />}
+                  label="DAU / MAU"
+                  value={`${data.stickiness.dauMau}%`}
+                  sub={`${fmt(data.stickiness.dau)} actifs aujourd'hui`}
+                />
+                <Card
+                  icon={<Activity size={15} />}
+                  label="WAU / MAU"
+                  value={`${data.stickiness.wauMau}%`}
+                  sub={`${fmt(data.stickiness.wau)} actifs sur 7j`}
+                />
+                <Card
+                  icon={<MessageSquare size={15} />}
+                  label="Messages (médiane)"
+                  value={fmt(data.powerUsers.medianMessages)}
+                  sub="par compte activé"
+                />
+                <Card
+                  icon={<UserCheck size={15} />}
+                  label="Power users"
+                  value={fmt(data.powerUsers.count)}
+                  sub={`${data.powerUsers.sharePct}% des messages`}
+                />
+              </div>
+              <p className="mt-2 text-xs text-text-tertiary">
+                Power user = plus de 75% du crédit consommé, ou plus de 50 messages.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-[13px] font-medium text-text-secondary">
+                Méthode d'inscription
+              </h2>
+              {data.signupMethods.map((m) => (
+                <StatBar
+                  key={m.label}
+                  label={m.label}
+                  pct={pctOf(m.signups, data.users.total)}
+                  value={`${fmt(m.signups)} · ${
+                    m.signups ? Math.round((m.activated / m.signups) * 100) : 0
+                  }% activés`}
+                />
+              ))}
             </section>
 
             <section>

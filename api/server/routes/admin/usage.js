@@ -81,8 +81,8 @@ router.get('/', async (req, res) => {
       perUser[r._id] = { count: r.count, dayList: Array.isArray(r.days) ? r.days : [] };
     });
 
-    // Comptes (hors admin) avec leur date d'inscription, pour les cohortes et profils.
-    const usersList = await User.find(notAdminUser).select('_id createdAt').lean();
+    // Comptes (hors admin) avec date d'inscription + methode (provider), pour cohortes et profils.
+    const usersList = await User.find(notAdminUser).select('_id createdAt provider').lean();
 
     // Messages par jour (filtre periode).
     const msgMatch = since
@@ -100,6 +100,18 @@ router.get('/', async (req, res) => {
 
     // Actifs sur la periode (comptes distincts avec au moins un message).
     const activeInPeriod = (await Message.distinct('user', msgMatch)).length;
+
+    // Stickiness : actifs distincts sur 1 / 7 / 30 jours (independant de la periode choisie).
+    const distinctActive = async (days) =>
+      (
+        await Message.distinct('user', {
+          ...notAdminMsg,
+          createdAt: { $gte: new Date(now.getTime() - days * DAY_MS) },
+        })
+      ).length;
+    const dau = await distinctActive(1);
+    const wau = await distinctActive(7);
+    const mau = await distinctActive(30);
 
     // Nouveaux inscrits par jour (tous), puis affichage filtre sur la periode.
     const signupByDay = await User.aggregate([
@@ -174,6 +186,7 @@ router.get('/', async (req, res) => {
           : -1;
       return {
         ageDays: u.createdAt instanceof Date ? (nowMs - u.createdAt.getTime()) / DAY_MS : null,
+        provider: u.provider || 'local',
         messages: pu.count,
         activeDays: pu.dayList.length,
         maxOffset,
@@ -252,6 +265,74 @@ router.get('/', async (req, res) => {
       burnPerActiveDay: Math.round(avg(heavyActive, (p) => p.consumed / p.activeDays)),
     };
 
+    // === Methode d'inscription (email/local vs Google) + activation par methode ===
+    const methodOf = (prov) =>
+      prov === 'google' ? 'Google' : prov === 'local' ? 'Email' : 'Autre';
+    const methodMap = {};
+    profiles.forEach((p) => {
+      const m = methodOf(p.provider);
+      if (!methodMap[m]) {
+        methodMap[m] = { signups: 0, activated: 0 };
+      }
+      methodMap[m].signups += 1;
+      if (p.messages > 0) {
+        methodMap[m].activated += 1;
+      }
+    });
+    const signupMethods = ['Email', 'Google', 'Autre']
+      .filter((m) => methodMap[m])
+      .map((m) => ({ label: m, signups: methodMap[m].signups, activated: methodMap[m].activated }));
+
+    // === BLOC 3 : activation approfondie + regle d'or ===
+    // Activation PROFONDE = revenu un 2e jour ET au moins 3 messages.
+    const deepActivation = {
+      base: totalUsers,
+      count: profiles.filter((p) => p.maxOffset >= 1 && p.messages >= 3).length,
+    };
+    // Regle d'or : les comptes profondement actives retiennent-ils >= 2x mieux a J7 ?
+    const elig7 = profiles.filter((p) => p.ageDays != null && p.ageDays >= 7);
+    const isDeep = (p) => p.maxOffset >= 1 && p.messages >= 3;
+    const deep7 = elig7.filter(isDeep);
+    const shallow7 = elig7.filter((p) => !isDeep(p));
+    const rateJ7 = (arr) =>
+      arr.length ? arr.filter((p) => p.maxOffset >= 7).length / arr.length : 0;
+    const deepRate = rateJ7(deep7);
+    const shallowRate = rateJ7(shallow7);
+    const goldenRule = {
+      deepBase: deep7.length,
+      shallowBase: shallow7.length,
+      deepJ7Pct: Math.round(deepRate * 100),
+      shallowJ7Pct: Math.round(shallowRate * 100),
+      ratio: shallowRate > 0 ? Math.round((deepRate / shallowRate) * 10) / 10 : null,
+    };
+
+    // === BLOC 4 : stickiness + mediane + power users ===
+    const stickiness = {
+      dau,
+      wau,
+      mau,
+      dauMau: mau ? Math.round((dau / mau) * 100) : 0,
+      wauMau: mau ? Math.round((wau / mau) * 100) : 0,
+    };
+    const median = (arr) => {
+      if (!arr.length) {
+        return 0;
+      }
+      const s = [...arr].sort((a, b) => a - b);
+      const mid = Math.floor(s.length / 2);
+      return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+    };
+    const totalMsgSum = activatedProfiles.reduce((s, p) => s + p.messages, 0);
+    // Power user = plus de 75% du credit consomme OU plus de 50 messages.
+    const power = activatedProfiles.filter((p) => p.usedPct > 75 || p.messages > 50);
+    const powerMsgSum = power.reduce((s, p) => s + p.messages, 0);
+    const powerUsers = {
+      count: power.length,
+      pctOfActivated: activated ? Math.round((power.length / activated) * 100) : 0,
+      sharePct: totalMsgSum ? Math.round((powerMsgSum / totalMsgSum) * 100) : 0,
+      medianMessages: median(activatedProfiles.map((p) => p.messages)),
+    };
+
     return res.status(200).json({
       period,
       generatedAt: now.toISOString(),
@@ -263,6 +344,11 @@ router.get('/', async (req, res) => {
         activeInPeriod,
       },
       retention,
+      deepActivation,
+      goldenRule,
+      signupMethods,
+      stickiness,
+      powerUsers,
       engagement,
       activeDays: activeDaysDist,
       concentration,
