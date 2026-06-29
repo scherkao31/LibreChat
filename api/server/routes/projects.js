@@ -813,7 +813,9 @@ router.post('/:projectId/check-agenda', async (req, res) => {
         `Rendez-vous a venir (index : titre — date — lieu) :\n${list}\n\n` +
         `Quels index sont lies a ce dossier ? Reponds {"pertinents": [...]}.`;
       try {
-        const llm = await callLancyaModel({ system, user: userMsg, maxTokens: 500, temperature: 0 });
+        // Kimi est un modele de RAISONNEMENT : un petit budget (ex. 500) est entierement mange par
+        // le raisonnement -> contenu vide. Il faut de la marge pour le raisonnement + la reponse JSON.
+        const llm = await callLancyaModel({ system, user: userMsg, maxTokens: 2500, temperature: 0 });
         logger.info(`[projects] check-agenda LLM brut: ${String(llm ?? '').slice(0, 300)}`);
         const parsed = extractJson(llm);
         const idxSet = new Set(
