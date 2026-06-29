@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { RefObject, MouseEvent } from 'react';
 import { Pencil, X, Send } from 'lucide-react';
 import { cn } from '~/utils';
@@ -31,13 +31,40 @@ function zoneOf(xPct: number, yPct: number): string {
 export default function DeckAnnotate({
   iframeRef,
   kind,
+  active: controlledActive,
+  onActiveChange,
 }: {
   iframeRef: RefObject<HTMLIFrameElement>;
   /** "cette presentation" / "ce carrousel" / "ce document" : injecte dans le message. */
   kind: string;
+  /**
+   * Mode controle : si onActiveChange est fourni, le declencheur (crayon) est gere par le PARENT
+   * (place dans sa barre d'outils) et n'est plus superpose au rendu. Sinon, crayon flottant interne.
+   */
+  active?: boolean;
+  onActiveChange?: (active: boolean) => void;
 }) {
-  const [active, setActive] = useState(false);
+  const controlled = onActiveChange != null;
+  const [internalActive, setInternalActive] = useState(false);
+  const active = controlled ? !!controlledActive : internalActive;
+  const setActive = useCallback(
+    (next: boolean) => {
+      if (controlled) {
+        onActiveChange?.(next);
+      } else {
+        setInternalActive(next);
+      }
+    },
+    [controlled, onActiveChange],
+  );
   const [pins, setPins] = useState<Pin[]>([]);
+
+  // Quitter le mode annotation (quel que soit le declencheur) efface les reperes en cours.
+  useEffect(() => {
+    if (!active) {
+      setPins([]);
+    }
+  }, [active]);
   const overlayRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(1);
   const { submitMessage } = useSubmitMessage();
@@ -102,19 +129,21 @@ export default function DeckAnnotate({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setActive((a) => !a)}
-        title="Annoter pour demander une modif a l'IA"
-        className={cn(
-          'absolute right-2 top-2 z-30 flex h-8 w-8 items-center justify-center rounded-full border shadow-sm transition-colors',
-          active
-            ? 'border-surface-submit bg-surface-submit text-white'
-            : 'border-border-medium bg-surface-primary/90 text-text-secondary hover:text-text-primary',
-        )}
-      >
-        <Pencil size={15} />
-      </button>
+      {!controlled && (
+        <button
+          type="button"
+          onClick={() => setActive(!active)}
+          title="Annoter pour demander une modif a l'IA"
+          className={cn(
+            'absolute right-2 top-2 z-30 flex h-8 w-8 items-center justify-center rounded-full border shadow-sm transition-colors',
+            active
+              ? 'border-surface-submit bg-surface-submit text-white'
+              : 'border-border-medium bg-surface-primary/90 text-text-secondary hover:text-text-primary',
+          )}
+        >
+          <Pencil size={15} />
+        </button>
+      )}
 
       {active && (
         <>

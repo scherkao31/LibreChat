@@ -16,6 +16,7 @@ import {
   ThumbsUp,
   Repeat2,
   ImageDown,
+  Wand2,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { dataService } from 'librechat-data-provider';
@@ -227,6 +228,9 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
   const [reactions, setReactions] = useState('138');
   const [comments, setComments] = useState('24');
   const [likes, setLikes] = useState('1 248');
+  // Mode "retoucher avec l'IA" (pointer un element pour demander une modif). Son declencheur vit
+  // dans la barre d'outils du bas ; la couche d'annotation (DeckAnnotate) ne s'affiche que si actif.
+  const [annotating, setAnnotating] = useState(false);
   const seededRef = useRef(false);
   const captionRef = useRef<HTMLTextAreaElement>(null);
   const { messageId, conversationId, partIndex } = useMessageContext();
@@ -524,7 +528,12 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
             className="block aspect-[4/5] w-full border-0"
             style={{ backgroundColor: bgColor }}
           />
-          <DeckAnnotate iframeRef={iframeRef} kind="ce carrousel" />
+          <DeckAnnotate
+            iframeRef={iframeRef}
+            kind="ce carrousel"
+            active={annotating}
+            onActiveChange={setAnnotating}
+          />
           {platform === 'instagram' && slideCount > 1 && (
             <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
               {Array.from({ length: slideCount }).map((_, n) => (
@@ -651,6 +660,20 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
         >
           {editing ? <Check size={14} /> : <Pencil size={14} />}
           {editing ? 'Terminer' : 'Editer le texte'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAnnotating((a) => !a)}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs',
+            annotating
+              ? 'bg-surface-tertiary text-text-primary'
+              : 'text-text-secondary hover:bg-surface-tertiary hover:text-text-primary',
+            'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+          )}
+        >
+          <Wand2 size={14} />
+          {annotating ? 'Terminer' : "Retoucher avec l'IA"}
         </button>
         <button
           type="button"
