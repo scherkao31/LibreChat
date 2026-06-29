@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Calendar, RefreshCw, Loader2 } from 'lucide-react';
+import { Calendar, RefreshCw, Loader2, X } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { dataService, QueryKeys } from 'librechat-data-provider';
 import type { TChatProject } from 'librechat-data-provider';
+import { useUpdateProjectMutation } from '~/data-provider';
 
 /** Formate « 5 juillet, 14h00 » à partir de la date ISO de début. */
 function formatWhen(start?: string | null): string {
@@ -28,10 +29,17 @@ export default function ProjectAgendaEvents({ project }: { project: TChatProject
   const projectId = project._id;
   const queryClient = useQueryClient();
   const { showToast } = useToastContext();
+  const update = useUpdateProjectMutation();
   const [checking, setChecking] = useState(false);
 
   const events = project.agendaEvents ?? [];
   const checked = project.agendaCheckedAt != null;
+
+  const removeEvent = (id: string) => {
+    const filtered = events.filter((e) => e.id !== id);
+    queryClient.setQueryData([QueryKeys.project, projectId], { ...project, agendaEvents: filtered });
+    update.mutate({ projectId, agendaEvents: filtered });
+  };
 
   const check = async () => {
     if (checking) {
@@ -88,7 +96,7 @@ export default function ProjectAgendaEvents({ project }: { project: TChatProject
           {events.map((ev) => {
             const meta = [formatWhen(ev.start), ev.location].filter(Boolean).join(' · ');
             return (
-              <div key={ev.id} className="flex items-center gap-3">
+              <div key={ev.id} className="group flex items-center gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-secondary text-text-secondary">
                   <Calendar size={15} aria-hidden="true" />
                 </span>
@@ -100,6 +108,14 @@ export default function ProjectAgendaEvents({ project }: { project: TChatProject
                     <div className="mt-0.5 truncate text-xs text-text-secondary">{meta}</div>
                   ) : null}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => removeEvent(ev.id)}
+                  title="Retirer ce rendez-vous du dossier"
+                  className="shrink-0 rounded-md p-1 text-text-tertiary opacity-0 transition-opacity hover:text-text-primary group-hover:opacity-100"
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
               </div>
             );
           })}
