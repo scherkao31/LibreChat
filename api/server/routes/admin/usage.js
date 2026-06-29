@@ -380,7 +380,12 @@ router.get('/', async (req, res) => {
       // conv : userId (String) -> { date = 1ere souscription, active = a un abonnement actif }.
       const conv = {};
       subs.forEach((s) => {
-        if (!s.userId || String(s.userId) === meStr) {
+        // Exclure le compte admin : par id ET par email (il est lui-meme abonne payant).
+        if (
+          !s.userId ||
+          String(s.userId) === meStr ||
+          String(s.email || '').toLowerCase() === ADMIN_EMAIL
+        ) {
           return;
         }
         const id = String(s.userId);
