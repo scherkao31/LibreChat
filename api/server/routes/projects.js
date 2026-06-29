@@ -738,9 +738,23 @@ router.post('/:projectId/threads', async (req, res) => {
   }
 });
 
+/** Contexte textuel d'un dossier (nom + description + fiche) pour guider une selection LLM. */
+function projectContextText(project) {
+  const fiche = project?.fiche ?? {};
+  const items = Array.isArray(fiche.items) ? fiche.items : [];
+  const itemsText = items.map((it) => `- ${it.text}`).join('\n');
+  return (
+    `Nom : ${project?.name ?? ''}` +
+    (project?.description ? `\nDescription : ${project.description}` : '') +
+    (fiche.summary ? `\nResume : ${fiche.summary}` : '') +
+    (itemsText ? `\nElements de la fiche :\n${itemsText}` : '')
+  );
+}
+
 /**
- * « Verifier l'agenda » : appelle le connecteur agenda en direct (list_events filtre sur le nom du
- * dossier), structure les evenements a venir et les range dans le dossier (agendaEvents). Bouton
+ * « Verifier l'agenda » : recupere les rendez-vous a venir du connecteur agenda (appel direct),
+ * puis un prompt selectionne ceux LIES au contexte du dossier (la fiche : client, personnes,
+ * sujets), et on range ces rendez-vous (agendaEvents). On ne dumpe pas tout l'agenda. Bouton
  * declenche par l'utilisateur (rien d'automatique). Renvoie le projet mis a jour.
  */
 router.post('/:projectId/check-agenda', async (req, res) => {
@@ -767,7 +781,7 @@ router.post('/:projectId/check-agenda', async (req, res) => {
         'X-Caldav-Url': 'https://sync.infomaniak.com/',
       },
       'list_events',
-      { query: project.name, daysAhead: 90, limit: 30 },
+      { daysAhead: 90, limit: 60 },
     );
     let raw;
     try {
@@ -778,8 +792,50 @@ router.post('/:projectId/check-agenda', async (req, res) => {
         .status(502)
         .json({ error: String(resultText).slice(0, 300) || 'Réponse agenda invalide' });
     }
+    const allEvents = Array.isArray(raw) ? raw : [];
+
+    // Selection INTELLIGENTE : on ne garde que les rendez-vous lies au CONTEXTE du dossier (la
+    // fiche : client, personnes, sujets), pas juste le nom du dossier. Un prompt choisit dans la
+    // fenetre recuperee. Repli sur le nom du dossier si la selection LLM echoue.
+    let selected = [];
+    if (allEvents.length > 0) {
+      const list = allEvents
+        .map((e, i) => {
+          const when = e?.start ? new Date(e.start).toLocaleString('fr-CH') : '';
+          const loc = e?.location ? ` — ${String(e.location).slice(0, 80)}` : '';
+          return `${i} : ${String(e?.summary ?? '(sans titre)').slice(0, 140)}${when ? ` — ${when}` : ''}${loc}`;
+        })
+        .join('\n');
+      const system =
+        'Tu selectionnes, parmi une liste de rendez-vous d\'agenda, ceux qui sont LIES a un dossier de travail precis, en t\'appuyant sur le contexte du dossier (nom du client, personnes, lieux, sujets, echeances). Sois SELECTIF : ne garde QUE les rendez-vous clairement lies a ce dossier ; en cas de doute, exclus. Reponds UNIQUEMENT par un JSON {"pertinents": [liste des index lies]}, sans aucun autre texte.';
+      const userMsg =
+        `Contexte du dossier :\n${projectContextText(project)}\n\n` +
+        `Rendez-vous a venir (index : titre — date — lieu) :\n${list}\n\n` +
+        `Quels index sont lies a ce dossier ? Reponds {"pertinents": [...]}.`;
+      try {
+        const llm = await callLancyaModel({ system, user: userMsg, maxTokens: 500, temperature: 0 });
+        const parsed = extractJson(llm);
+        const idxSet = new Set(
+          (Array.isArray(parsed?.pertinents) ? parsed.pertinents : []).filter((n) =>
+            Number.isInteger(n),
+          ),
+        );
+        selected = allEvents.filter((_, i) => idxSet.has(i));
+      } catch (err) {
+        logger.warn(
+          `[projects] check-agenda: selection LLM echouee (${err.message}), repli sur le nom du dossier`,
+        );
+        const q = String(project.name ?? '').trim().toLowerCase();
+        selected = q
+          ? allEvents.filter((e) =>
+              `${e?.summary ?? ''} ${e?.location ?? ''}`.toLowerCase().includes(q),
+            )
+          : [];
+      }
+    }
+
     const stamp = Date.now();
-    const agendaEvents = (Array.isArray(raw) ? raw : []).slice(0, 50).map((e, i) => ({
+    const agendaEvents = selected.slice(0, 50).map((e, i) => ({
       id: `ev-${stamp}-${i}`,
       summary: String(e?.summary ?? '').slice(0, 500),
       start: e?.start ? new Date(e.start) : null,
