@@ -107,6 +107,7 @@ const Reasoning = memo(({ reasoning, isLast }: ReasoningProps) => {
             label={label}
             content={reasoningText}
             contentId={contentId}
+            inProgress={effectiveIsSubmitting && isLast}
           />
         </div>
         <div

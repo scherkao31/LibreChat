@@ -2940,6 +2940,24 @@ html {
   animation: shimmer 4s linear infinite;
 }
 
+/* Points de « reflexion en cours » : trois points qui rebondissent, decales (cf Thinking.tsx). */
+@keyframes lancya-thinking-dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.lancya-thinking-dot {
+  animation: lancya-thinking-dot 1.2s ease-in-out infinite;
+}
+
 .custom-style-2 {
   padding: 12px;
 }

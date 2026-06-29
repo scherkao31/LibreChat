@@ -37,6 +37,7 @@ export const ThinkingButton = memo(
     content,
     contentId,
     showCopyButton = true,
+    inProgress = false,
   }: {
     isExpanded: boolean;
     onClick: (e: MouseEvent<HTMLButtonElement>) => void;
@@ -44,6 +45,8 @@ export const ThinkingButton = memo(
     content?: string;
     contentId: string;
     showCopyButton?: boolean;
+    /** Reflexion en cours : remplace les « ... » statiques du libelle par des points animes. */
+    inProgress?: boolean;
   }) => {
     const localize = useLocalize();
     const fontSize = useAtomValue(fontSizeAtom);
@@ -87,7 +90,24 @@ export const ThinkingButton = memo(
               aria-hidden="true"
             />
           </span>
-          {label}
+          {inProgress ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span>{label.replace(/[.…\s]+$/, '')}</span>
+              <span className="inline-flex items-center gap-1" aria-hidden="true">
+                <span className="lancya-thinking-dot h-1 w-1 rounded-full bg-current" />
+                <span
+                  className="lancya-thinking-dot h-1 w-1 rounded-full bg-current"
+                  style={{ animationDelay: '0.15s' }}
+                />
+                <span
+                  className="lancya-thinking-dot h-1 w-1 rounded-full bg-current"
+                  style={{ animationDelay: '0.3s' }}
+                />
+              </span>
+            </span>
+          ) : (
+            label
+          )}
         </button>
         {content && showCopyButton && (
           <button
