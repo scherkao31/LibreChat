@@ -115,7 +115,7 @@ function DailyChart({ data }: { data: Daily[] }) {
           <div
             key={d.date}
             title={`${d.date} : ${d.count}`}
-            className="min-h-[2px] flex-1 rounded-t bg-text-primary/70"
+            className="min-h-[2px] flex-1 rounded-t bg-text-primary opacity-70"
             style={{ height: `${(d.count / max) * 100}%` }}
           />
         ))}
