@@ -66,22 +66,18 @@ router.get('/', async (req, res) => {
     // Inscriptions (cumul).
     const totalUsers = await User.countDocuments(notAdminUser);
 
-    // Activation + retention (cumul) : jours distincts d'activite par compte.
-    const ret = (
-      await Message.aggregate([
-        { $match: { ...notAdminMsg, createdAt: { $type: 'date' } } },
-        { $group: { _id: { u: '$user', d: dayExpr } } },
-        { $group: { _id: '$_id.u', days: { $sum: 1 } } },
-        {
-          $group: {
-            _id: null,
-            activated: { $sum: 1 },
-            ret2: { $sum: { $cond: [{ $gte: ['$days', 2] }, 1, 0] } },
-            ret3: { $sum: { $cond: [{ $gte: ['$days', 3] }, 1, 0] } },
-          },
-        },
-      ])
-    )[0] || { activated: 0, ret2: 0, ret3: 0 };
+    // Donnees PAR UTILISATEUR (cumul) : nb de messages + jours actifs distincts.
+    const perUserAgg = await Message.aggregate([
+      { $match: { ...notAdminMsg, createdAt: { $type: 'date' } } },
+      { $group: { _id: '$user', count: { $sum: 1 }, days: { $addToSet: dayExpr } } },
+    ]);
+    const perUser = {};
+    perUserAgg.forEach((r) => {
+      perUser[r._id] = { count: r.count, days: Array.isArray(r.days) ? r.days.length : 0 };
+    });
+
+    // Comptes (hors admin) avec leur date d'inscription, pour les cohortes et profils.
+    const usersList = await User.find(notAdminUser).select('_id createdAt').lean();
 
     // Messages par jour (filtre periode).
     const msgMatch = since
@@ -126,7 +122,7 @@ router.get('/', async (req, res) => {
 
     // Consommation des credits (etat courant via balances).
     const balances = await Balance.find(meId ? { user: { $ne: meId } } : {})
-      .select('tokenCredits')
+      .select('user tokenCredits')
       .lean();
     const bucketDefs = [
       { label: '0 a 25%', min: 0, max: 25 },
@@ -153,7 +149,93 @@ router.get('/', async (req, res) => {
       buckets[idx].count += 1;
     });
 
-    const activated = ret.activated || 0;
+    // === Profils PAR COMPTE (jointure perUser <-> users <-> balances, par id) ===
+    const balanceByUser = {};
+    balances.forEach((b) => {
+      balanceByUser[String(b.user)] =
+        typeof b.tokenCredits === 'number' ? b.tokenCredits : START_BALANCE;
+    });
+    const nowMs = now.getTime();
+    const profiles = usersList.map((u) => {
+      const id = String(u._id);
+      const pu = perUser[id] || { count: 0, days: 0 };
+      const credits = balanceByUser[id] != null ? balanceByUser[id] : START_BALANCE;
+      const consumed = Math.max(0, START_BALANCE - credits);
+      return {
+        ageDays: u.createdAt instanceof Date ? (nowMs - u.createdAt.getTime()) / DAY_MS : null,
+        messages: pu.count,
+        activeDays: pu.days,
+        consumed,
+        usedPct: (consumed / START_BALANCE) * 100,
+      };
+    });
+    const activatedProfiles = profiles.filter((p) => p.messages > 0);
+    const activated = activatedProfiles.length;
+
+    // Retention par COHORTE : denominateur = comptes assez vieux pour avoir eu la chance de revenir.
+    const eligible2 = profiles.filter((p) => p.ageDays != null && p.ageDays >= 2);
+    const eligible3 = profiles.filter((p) => p.ageDays != null && p.ageDays >= 3);
+    const retention = {
+      activated: { base: totalUsers, count: activated },
+      ret2: { base: eligible2.length, count: eligible2.filter((p) => p.activeDays >= 2).length },
+      ret3: { base: eligible3.length, count: eligible3.filter((p) => p.activeDays >= 3).length },
+    };
+
+    // Profondeur d'engagement : repartition des messages par compte activé.
+    const engagement = [
+      { label: '1 message', test: (m) => m === 1 },
+      { label: '2 a 5', test: (m) => m >= 2 && m <= 5 },
+      { label: '6 a 20', test: (m) => m >= 6 && m <= 20 },
+      { label: '21 a 50', test: (m) => m >= 21 && m <= 50 },
+      { label: 'plus de 50', test: (m) => m > 50 },
+    ].map((d) => ({
+      label: d.label,
+      count: activatedProfiles.filter((p) => d.test(p.messages)).length,
+    }));
+
+    // Regularite : repartition des jours actifs distincts par compte activé.
+    const activeDaysDist = [
+      { label: '1 jour', test: (d) => d === 1 },
+      { label: '2 a 3 jours', test: (d) => d >= 2 && d <= 3 },
+      { label: '4 a 7 jours', test: (d) => d >= 4 && d <= 7 },
+      { label: '8 jours et plus', test: (d) => d >= 8 },
+    ].map((d) => ({
+      label: d.label,
+      count: activatedProfiles.filter((p) => d.test(p.activeDays)).length,
+    }));
+
+    // Concentration (Pareto) : part du top 10% des comptes activés.
+    const shareTop10 = (values) => {
+      const sorted = [...values].sort((a, b) => b - a);
+      const total = sorted.reduce((s, v) => s + v, 0);
+      if (!total) {
+        return 0;
+      }
+      const topN = Math.max(1, Math.ceil(sorted.length * 0.1));
+      const topSum = sorted.slice(0, topN).reduce((s, v) => s + v, 0);
+      return Math.round((topSum / total) * 100);
+    };
+    const concentration = {
+      topMessagesPct: shareTop10(activatedProfiles.map((p) => p.messages)),
+      topCreditsPct: shareTop10(activatedProfiles.map((p) => p.consumed)),
+    };
+
+    // Gros consommateurs (plus de 75% du credit) : nouveaux qui bingent ou fideles ?
+    const heavy = profiles.filter((p) => p.usedPct > 75);
+    const avg = (arr, sel) => (arr.length ? arr.reduce((s, p) => s + sel(p), 0) / arr.length : 0);
+    const heavyActive = heavy.filter((p) => p.activeDays > 0);
+    const heavyUsers = {
+      total: heavy.length,
+      byAge: [
+        { label: 'moins de 7 jours', test: (a) => a != null && a < 7 },
+        { label: '7 a 14 jours', test: (a) => a != null && a >= 7 && a <= 14 },
+        { label: 'plus de 14 jours', test: (a) => a != null && a > 14 },
+      ].map((d) => ({ label: d.label, count: heavy.filter((p) => d.test(p.ageDays)).length })),
+      avgActiveDays: Math.round(avg(heavy, (p) => p.activeDays) * 10) / 10,
+      avgMessages: Math.round(avg(heavy, (p) => p.messages)),
+      burnPerActiveDay: Math.round(avg(heavyActive, (p) => p.consumed / p.activeDays)),
+    };
+
     return res.status(200).json({
       period,
       generatedAt: now.toISOString(),
@@ -164,7 +246,11 @@ router.get('/', async (req, res) => {
         newToday,
         activeInPeriod,
       },
-      retention: { base: totalUsers, ret2: ret.ret2 || 0, ret3: ret.ret3 || 0 },
+      retention,
+      engagement,
+      activeDays: activeDaysDist,
+      concentration,
+      heavyUsers,
       messages: {
         inPeriod: messagesInPeriod,
         perActiveUser: activeInPeriod

@@ -33,20 +33,36 @@ type Stats = {
     newToday: number;
     activeInPeriod: number;
   };
-  retention: { base: number; ret2: number; ret3: number };
+  retention: {
+    activated: { base: number; count: number };
+    ret2: { base: number; count: number };
+    ret3: { base: number; count: number };
+  };
+  engagement: Bucket[];
+  activeDays: Bucket[];
+  concentration: { topMessagesPct: number; topCreditsPct: number };
+  heavyUsers: {
+    total: number;
+    byAge: Bucket[];
+    avgActiveDays: number;
+    avgMessages: number;
+    burnPerActiveDay: number;
+  };
   messages: { inPeriod: number; perActiveUser: number; daily: Daily[] };
   signups: { inPeriod: number; daily: Daily[] };
   tokens: {
     startBalance: number;
     consumedTotal: number;
     nearLimit: number;
-    buckets: { label: string; count: number }[];
+    buckets: Bucket[];
   };
 };
+type Bucket = { label: string; count: number };
 
 const nf = new Intl.NumberFormat('fr-CH');
 const fmt = (n: number) => nf.format(n);
 const fmtM = (n: number) => (n >= 1000000 ? `${(n / 1000000).toFixed(1)} M` : fmt(n));
+const pctOf = (count: number, base: number) => (base ? (count / base) * 100 : 0);
 
 function Card({
   icon,
@@ -126,6 +142,23 @@ function DailyChart({ data }: { data: Daily[] }) {
           <span>{data[data.length - 1].date.slice(5)}</span>
         </div>
       ) : null}
+    </>
+  );
+}
+
+function BucketBars({ buckets, colors }: { buckets: Bucket[]; colors?: string[] }) {
+  const max = Math.max(1, ...buckets.map((b) => b.count));
+  return (
+    <>
+      {buckets.map((b, i) => (
+        <StatBar
+          key={b.label}
+          label={b.label}
+          pct={(b.count / max) * 100}
+          value={fmt(b.count)}
+          color={colors?.[i]}
+        />
+      ))}
     </>
   );
 }
@@ -224,24 +257,57 @@ export default function UsageDashboard() {
             </div>
 
             <section>
-              <h2 className="mb-2 text-[13px] font-medium text-text-secondary">
-                Activation et rétention (sur {fmt(data.retention.base)} inscrits)
+              <h2 className="mb-1 text-[13px] font-medium text-text-secondary">
+                Activation et rétention
               </h2>
+              <p className="mb-2 text-xs text-text-tertiary">
+                Rétention mesurée seulement sur les comptes assez anciens pour avoir eu la chance de
+                revenir (le dénominateur change selon l'horizon).
+              </p>
               <StatBar
                 label="A écrit un message"
-                pct={data.retention.base ? (data.users.activated / data.retention.base) * 100 : 0}
-                value={fmt(data.users.activated)}
+                pct={pctOf(data.retention.activated.count, data.retention.activated.base)}
+                value={`${fmt(data.retention.activated.count)} / ${fmt(data.retention.activated.base)}`}
               />
               <StatBar
                 label="Revenu un 2e jour"
-                pct={data.retention.base ? (data.retention.ret2 / data.retention.base) * 100 : 0}
-                value={fmt(data.retention.ret2)}
+                pct={pctOf(data.retention.ret2.count, data.retention.ret2.base)}
+                value={`${fmt(data.retention.ret2.count)} / ${fmt(data.retention.ret2.base)}`}
               />
               <StatBar
                 label="Revenu un 3e jour"
-                pct={data.retention.base ? (data.retention.ret3 / data.retention.base) * 100 : 0}
-                value={fmt(data.retention.ret3)}
+                pct={pctOf(data.retention.ret3.count, data.retention.ret3.base)}
+                value={`${fmt(data.retention.ret3.count)} / ${fmt(data.retention.ret3.base)}`}
               />
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-[13px] font-medium text-text-secondary">
+                Profondeur d'engagement (messages par compte activé)
+              </h2>
+              <BucketBars buckets={data.engagement} />
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-[13px] font-medium text-text-secondary">
+                Régularité (jours actifs distincts par compte activé)
+              </h2>
+              <BucketBars buckets={data.activeDays} />
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-[13px] font-medium text-text-secondary">Concentration</h2>
+              <p className="text-sm leading-relaxed text-text-secondary">
+                Le top 10% des comptes actifs représente{' '}
+                <span className="font-medium text-text-primary">
+                  {data.concentration.topMessagesPct}%
+                </span>{' '}
+                des messages et{' '}
+                <span className="font-medium text-text-primary">
+                  {data.concentration.topCreditsPct}%
+                </span>{' '}
+                des crédits consommés.
+              </p>
             </section>
 
             <section>
@@ -286,6 +352,37 @@ export default function UsageDashboard() {
                   label="Crédits consommés"
                   value={fmtM(data.tokens.consumedTotal)}
                   sub={`sur ${fmtM(data.tokens.startBalance * data.users.total)} offerts`}
+                />
+              </div>
+            </section>
+
+            <section>
+              <h2 className="mb-1 text-[13px] font-medium text-text-secondary">
+                Gros consommateurs (plus de 75% du crédit)
+              </h2>
+              <p className="mb-3 text-xs text-text-tertiary">
+                {fmt(data.heavyUsers.total)} comptes. Des nouveaux qui bingent, ou des fidèles qui
+                usent dans la durée ?
+              </p>
+              <BucketBars
+                buckets={data.heavyUsers.byAge}
+                colors={['#E24B4A', '#BA7517', '#1D9E75']}
+              />
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <Card
+                  icon={<Activity size={15} />}
+                  label="Jours actifs (moy.)"
+                  value={data.heavyUsers.avgActiveDays}
+                />
+                <Card
+                  icon={<MessageSquare size={15} />}
+                  label="Messages (moy.)"
+                  value={fmt(data.heavyUsers.avgMessages)}
+                />
+                <Card
+                  icon={<Coins size={15} />}
+                  label="Crédits / jour actif"
+                  value={fmtM(data.heavyUsers.burnPerActiveDay)}
                 />
               </div>
             </section>
