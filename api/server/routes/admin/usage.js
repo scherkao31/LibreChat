@@ -306,21 +306,48 @@ router.get('/', async (req, res) => {
       ratio: shallowRate > 0 ? Math.round((deepRate / shallowRate) * 10) / 10 : null,
     };
 
-    // === BLOC 4 : stickiness + mediane + power users ===
-    const stickiness = {
-      dau,
-      wau,
-      mau,
-      dauMau: mau ? Math.round((dau / mau) * 100) : 0,
-      wauMau: mau ? Math.round((wau / mau) * 100) : 0,
-    };
     const median = (arr) => {
       if (!arr.length) {
         return 0;
       }
       const s = [...arr].sort((a, b) => a - b);
       const mid = Math.floor(s.length / 2);
-      return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+      return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    };
+
+    // Time to value : delai MEDIAN entre l'inscription et le 3e message (en heures).
+    const usersById = {};
+    usersList.forEach((u) => {
+      usersById[String(u._id)] = u.createdAt instanceof Date ? u.createdAt.getTime() : null;
+    });
+    const thirdMsgAgg = await Message.aggregate([
+      { $match: { ...notAdminMsg, createdAt: { $type: 'date' } } },
+      { $sort: { createdAt: 1 } },
+      { $group: { _id: '$user', msgs: { $push: '$createdAt' } } },
+      { $project: { third: { $arrayElemAt: ['$msgs', 2] } } },
+    ]);
+    const ttvHours = [];
+    thirdMsgAgg.forEach((r) => {
+      const signup = usersById[r._id];
+      if (r.third && signup != null) {
+        const h = (new Date(r.third).getTime() - signup) / 3600000;
+        if (h >= 0) {
+          ttvHours.push(h);
+        }
+      }
+    });
+    const timeToValue = {
+      base: ttvHours.length,
+      medianHours: Math.round(median(ttvHours) * 10) / 10,
+    };
+
+    // === BLOC 4 : stickiness + power users ===
+    const stickiness = {
+      dau,
+      wau,
+      mau,
+      dauMau: mau ? Math.round((dau / mau) * 100) : 0,
+      wauMau: mau ? Math.round((wau / mau) * 100) : 0,
     };
     const totalMsgSum = activatedProfiles.reduce((s, p) => s + p.messages, 0);
     // Power user = plus de 75% du credit consomme OU plus de 50 messages.
@@ -330,7 +357,7 @@ router.get('/', async (req, res) => {
       count: power.length,
       pctOfActivated: activated ? Math.round((power.length / activated) * 100) : 0,
       sharePct: totalMsgSum ? Math.round((powerMsgSum / totalMsgSum) * 100) : 0,
-      medianMessages: median(activatedProfiles.map((p) => p.messages)),
+      medianMessages: Math.round(median(activatedProfiles.map((p) => p.messages))),
     };
 
     return res.status(200).json({
@@ -346,6 +373,7 @@ router.get('/', async (req, res) => {
       retention,
       deepActivation,
       goldenRule,
+      timeToValue,
       signupMethods,
       stickiness,
       powerUsers,

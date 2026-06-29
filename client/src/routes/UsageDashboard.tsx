@@ -10,6 +10,7 @@ import {
   Coins,
   AlertTriangle,
   RefreshCw,
+  Clock,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
@@ -47,6 +48,7 @@ type Stats = {
     shallowJ7Pct: number;
     ratio: number | null;
   };
+  timeToValue: { base: number; medianHours: number };
   signupMethods: { label: string; signups: number; activated: number }[];
   stickiness: { dau: number; wau: number; mau: number; dauMau: number; wauMau: number };
   powerUsers: { count: number; pctOfActivated: number; sharePct: number; medianMessages: number };
@@ -402,6 +404,29 @@ export default function UsageDashboard() {
                 )}
                 .
               </div>
+              {(() => {
+                const ttv = data.timeToValue;
+                const enough = ttv.base >= 10;
+                const good = ttv.medianHours <= 36;
+                const color = !enough ? '#888780' : good ? '#1D9E75' : '#BA7517';
+                const label =
+                  ttv.medianHours < 48
+                    ? `${ttv.medianHours} h`
+                    : `${(ttv.medianHours / 24).toFixed(1)} j`;
+                return (
+                  <div className="mt-3">
+                    <Card
+                      accent={color}
+                      icon={<Clock size={15} />}
+                      label="Time to value (médiane inscription vers 3e message)"
+                      value={enough ? label : '—'}
+                      sub={`repère ~36 h · ${
+                        enough ? (good ? 'rapide' : 'lent') : 'pas assez de recul'
+                      } · sur ${fmt(ttv.base)} comptes`}
+                    />
+                  </div>
+                );
+              })()}
             </section>
 
             <section>
