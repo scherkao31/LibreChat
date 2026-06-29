@@ -43,10 +43,12 @@ const INJECT_STYLE = `<style id="ld-style">
   html, body { margin: 0; height: 100%; overflow: hidden; }
   .slide { position: absolute !important; top: 50% !important; left: 50% !important; width: 1080px !important; height: 1350px !important; margin: -675px 0 0 -540px !important; transform: scale(var(--ld-scale, 1)); transform-origin: center center; overflow: hidden; box-sizing: border-box; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
   .slide.ld-active { opacity: 1; pointer-events: auto; }
-  .ld-nav { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 999px; background: rgba(127,127,127,.12); backdrop-filter: blur(6px); z-index: 99999; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
-  .ld-btn { border: 0; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; color: var(--text, #1a1a1a); padding: 2px 9px; border-radius: 50%; }
-  .ld-btn:hover { background: rgba(127,127,127,.18); }
-  .ld-count { font-size: 13px; color: var(--muted, #6b7280); min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+  .ld-counter { position: fixed; top: 12px; right: 12px; background: rgba(0,0,0,.7); color: #fff; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; z-index: 99999; font-variant-numeric: tabular-nums; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .ld-arrow { position: fixed; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.95); border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 99999; box-shadow: 0 1px 6px rgba(0,0,0,.28); opacity: 0; transition: opacity .18s; }
+  body:hover .ld-arrow { opacity: 1; }
+  .ld-arrow[disabled] { opacity: 0 !important; pointer-events: none; }
+  .ld-arrow.prev { left: 10px; } .ld-arrow.next { right: 10px; }
+  .ld-arrow svg { width: 18px; height: 18px; fill: none; stroke: #222; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   [contenteditable="true"] { outline: none; }
   .slide.ld-active[contenteditable="true"] { cursor: text; }
 </style>`;
@@ -61,25 +63,28 @@ const INJECT_SCRIPT = `<script id="ld-script">
   }
   window.addEventListener('resize', fit);
   fit();
-  var i = 0, counter = null;
+  var i = 0, counter = null, prev = null, next = null;
   function show(n){
     i = Math.max(0, Math.min(slides.length - 1, n));
     for (var k = 0; k < slides.length; k++) { slides[k].classList.toggle('ld-active', k === i); }
     if (counter) { counter.textContent = (i + 1) + ' / ' + slides.length; }
+    if (prev) { prev.disabled = (i === 0); }
+    if (next) { next.disabled = (i === slides.length - 1); }
     try { parent.postMessage({ lancyaDeckSlide: true, index: i, count: slides.length }, '*'); } catch (e) {}
   }
   if (slides.length > 1) {
-    var bar = document.createElement('div'); bar.className = 'ld-nav';
-    var prev = document.createElement('button'); prev.type = 'button'; prev.className = 'ld-btn'; prev.setAttribute('aria-label', 'Carte precedente'); prev.textContent = '\\u2039'; prev.onclick = function(){ show(i - 1); };
-    counter = document.createElement('span'); counter.className = 'ld-count';
-    var next = document.createElement('button'); next.type = 'button'; next.className = 'ld-btn'; next.setAttribute('aria-label', 'Carte suivante'); next.textContent = '\\u203A'; next.onclick = function(){ show(i + 1); };
-    bar.appendChild(prev); bar.appendChild(counter); bar.appendChild(next);
-    document.body.appendChild(bar);
+    counter = document.createElement('div'); counter.className = 'ld-counter'; document.body.appendChild(counter);
+    prev = document.createElement('button'); prev.type = 'button'; prev.className = 'ld-arrow prev'; prev.setAttribute('aria-label', 'Carte precedente'); prev.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>'; prev.onclick = function(){ show(i - 1); };
+    next = document.createElement('button'); next.type = 'button'; next.className = 'ld-arrow next'; next.setAttribute('aria-label', 'Carte suivante'); next.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>'; next.onclick = function(){ show(i + 1); };
+    document.body.appendChild(prev); document.body.appendChild(next);
     document.addEventListener('keydown', function(e){
       var ae = document.activeElement;
       if (ae && ae.isContentEditable) { return; }
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(i + 1); }
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    });
+    window.addEventListener('message', function(e){
+      var d = e.data; if (d && d.lancyaDeckGo) { show(d.index | 0); }
     });
   }
   show(0);
@@ -200,6 +205,7 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
   const [caption, setCaption] = useState('');
   const [captionCopied, setCaptionCopied] = useState(false);
   const seededRef = useRef(false);
+  const captionRef = useRef<HTMLTextAreaElement>(null);
   const { messageId, conversationId, partIndex } = useMessageContext();
   const { showToast } = useToastContext();
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -217,7 +223,9 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
       return null;
     }
     const clone = d.documentElement.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll('#ld-style, #ld-script, .ld-nav').forEach((el) => el.remove());
+    clone
+      .querySelectorAll('#ld-style, #ld-script, .ld-nav, .ld-counter, .ld-arrow')
+      .forEach((el) => el.remove());
     clone.querySelectorAll('.slide').forEach((s) => {
       s.classList.remove('ld-active');
       (s as HTMLElement).removeAttribute('contenteditable');
@@ -363,6 +371,21 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
     }
   }, [caption]);
 
+  // Les points (chrome React) pilotent l'iframe : on pousse l'index, le script injecte ecoute
+  // `lancyaDeckGo`. Les fleches et le clavier restent DANS l'iframe (donc dispo en plein ecran).
+  const goToSlide = useCallback((n: number) => {
+    iframeRef.current?.contentWindow?.postMessage({ lancyaDeckGo: true, index: n }, '*');
+  }, []);
+
+  // La legende s'edite en place (facon texte de post) : on cale la hauteur sur le contenu.
+  useEffect(() => {
+    const el = captionRef.current;
+    if (el) {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [caption, platform, ready]);
+
   // Export PNG par carte (1080x1350) : la carte courante (PNG) ou toutes (ZIP).
   const downloadImages = useCallback(
     async (scope: 'all' | 'current') => {
@@ -393,6 +416,10 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
   }
 
   const colorValue = (e: PaletteEntry) => overrides[e.name] ?? e.value;
+  // Avatar colore comme l'accent du carrousel + fond d'iframe assorti (evite un lisere si le slide
+  // ne remplit pas pile l'iframe), comme dans le rendu du skill.
+  const accentColor = overrides.accent ?? palette.find((e) => e.name === 'accent')?.value ?? '#16243F';
+  const bgColor = overrides.bg ?? palette.find((e) => e.name === 'bg')?.value ?? '#FBF7EF';
 
   return (
     <div className="not-prose my-3 flex w-full flex-col items-center font-sans">
@@ -415,33 +442,55 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
         ))}
       </div>
 
-      {/* Carte facon post : header + carrousel + actions + legende. */}
+      {/* Carte facon post reel. Le carrousel (iframe) ne change pas ; on soigne le contour. */}
       <div
         className={cn(
-          'w-full max-w-[400px] overflow-hidden rounded-2xl border bg-surface-primary shadow-sm',
+          'w-full max-w-[400px] overflow-hidden rounded-xl border bg-white text-[#000000e6] shadow-sm',
           editing ? 'border-border-heavy ring-2 ring-border-heavy' : 'border-border-medium',
         )}
       >
-        <div className="flex items-center gap-2.5 px-3 py-2.5">
-          <div
-            className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center bg-surface-tertiary text-text-secondary',
-              platform === 'instagram' ? 'rounded-full' : 'rounded-md',
-            )}
-          >
-            <User size={18} />
-          </div>
-          <div className="min-w-0 flex-1 leading-tight">
-            <div className="truncate text-sm font-semibold text-text-primary">
-              {platform === 'instagram' ? 'votre_compte' : 'Votre nom'}
+        {/* En-tete (specifique a la plateforme) */}
+        {platform === 'linkedin' ? (
+          <div className="flex items-start gap-2 px-3.5 pb-2 pt-3">
+            <div
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white"
+              style={{ backgroundColor: accentColor }}
+            >
+              <User size={20} />
             </div>
-            <div className="truncate text-xs text-text-secondary">
-              {platform === 'instagram' ? 'Votre localisation' : 'Votre poste · maintenant'}
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-sm font-semibold">Votre nom</div>
+              <div className="truncate text-xs text-[#00000099]">Votre accroche de profil</div>
+              <div className="text-xs text-[#00000099]">18 h</div>
             </div>
+            <span className="shrink-0 text-sm font-semibold text-[#0a66c2]">+ Suivre</span>
           </div>
-          <MoreHorizontal size={18} className="shrink-0 text-text-secondary" />
-        </div>
+        ) : (
+          <div className="flex items-center gap-2.5 px-3 py-2.5">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
+              style={{ backgroundColor: accentColor }}
+            >
+              <User size={16} />
+            </div>
+            <div className="min-w-0 flex-1 text-sm font-semibold">votre_compte</div>
+            <MoreHorizontal size={18} className="shrink-0" />
+          </div>
+        )}
 
+        {/* LinkedIn : la legende est le texte du post, au-dessus du carrousel. */}
+        {platform === 'linkedin' && (
+          <textarea
+            ref={captionRef}
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            rows={1}
+            placeholder="Ecrivez votre legende..."
+            className="block w-full resize-none border-0 bg-transparent px-3.5 pb-2.5 text-sm leading-snug text-[#000000e6] placeholder:text-[#00000066] focus:outline-none focus:ring-0"
+          />
+        )}
+
+        {/* Carrousel : iframe PARTAGEE entre les deux apercus (pas de rechargement au toggle). */}
         <div className="relative">
           <iframe
             ref={iframeRef}
@@ -449,54 +498,92 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
             srcDoc={srcDoc}
             onLoad={handleLoad}
             sandbox="allow-scripts allow-same-origin allow-popups"
-            className="block aspect-[4/5] w-full border-0 bg-white"
+            className="block aspect-[4/5] w-full border-0"
+            style={{ backgroundColor: bgColor }}
           />
           <DeckAnnotate iframeRef={iframeRef} kind="ce carrousel" />
-        </div>
-
-        <div className="flex items-center gap-4 px-3 py-2.5 text-text-secondary">
-          {platform === 'instagram' ? (
-            <>
-              <Heart size={20} />
-              <MessageCircle size={20} />
-              <Send size={20} />
-              <Bookmark size={20} className="ml-auto" />
-            </>
-          ) : (
-            <>
-              <span className="flex items-center gap-1 text-xs">
-                <ThumbsUp size={15} /> J'aime
-              </span>
-              <span className="flex items-center gap-1 text-xs">
-                <MessageCircle size={15} /> Commenter
-              </span>
-              <span className="flex items-center gap-1 text-xs">
-                <Repeat2 size={15} /> Republier
-              </span>
-              <span className="ml-auto flex items-center gap-1 text-xs">
-                <Send size={15} /> Envoyer
-              </span>
-            </>
+          {platform === 'instagram' && slideCount > 1 && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+              {Array.from({ length: slideCount }).map((_, n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-label={`Carte ${n + 1}`}
+                  onClick={() => goToSlide(n)}
+                  className="pointer-events-auto h-1.5 w-1.5 rounded-full transition-all"
+                  style={{ backgroundColor: n === currentIndex ? '#0095f6' : 'rgba(0,0,0,.2)' }}
+                />
+              ))}
+            </div>
           )}
         </div>
 
-        <div className="px-3 pb-3">
-          <textarea
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            rows={3}
-            placeholder="Ecrivez votre legende..."
-            className="w-full resize-none rounded-lg border border-border-light bg-surface-secondary px-2.5 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-border-heavy focus:outline-none focus:ring-0"
-          />
-          <button
-            type="button"
-            onClick={copyCaption}
-            className="mt-1.5 flex items-center gap-1.5 text-xs text-text-secondary transition-colors hover:text-text-primary"
-          >
-            {captionCopied ? <Check size={13} /> : <Copy size={13} />}
-            {captionCopied ? 'Legende copiee' : 'Copier la legende'}
-          </button>
-        </div>
+        {/* Bas de carte (specifique a la plateforme) */}
+        {platform === 'linkedin' ? (
+          <>
+            {slideCount > 1 && (
+              <div className="flex justify-center gap-1.5 py-2.5">
+                {Array.from({ length: slideCount }).map((_, n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-label={`Carte ${n + 1}`}
+                    onClick={() => goToSlide(n)}
+                    className="h-1.5 rounded-full transition-all"
+                    style={{
+                      width: n === currentIndex ? 20 : 6,
+                      backgroundColor: n === currentIndex ? '#0a66c2' : '#c9ccd1',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 px-3.5 pb-2.5 pt-1 text-xs text-[#00000099]">
+              <ThumbsUp size={14} className="text-[#0a66c2]" />
+              <span>Vous et 138 autres</span>
+              <span className="ml-auto">24 commentaires</span>
+            </div>
+            <div className="mx-3 border-t border-[#e9e9e7]" />
+            <div className="flex items-center justify-around px-1.5 py-1 text-[#00000099]">
+              <span className="flex items-center gap-1.5 px-2 py-2 text-[13px] font-medium">
+                <ThumbsUp size={18} /> J'aime
+              </span>
+              <span className="flex items-center gap-1.5 px-2 py-2 text-[13px] font-medium">
+                <MessageCircle size={18} /> Commenter
+              </span>
+              <span className="flex items-center gap-1.5 px-2 py-2 text-[13px] font-medium">
+                <Repeat2 size={18} /> Republier
+              </span>
+              <span className="flex items-center gap-1.5 px-2 py-2 text-[13px] font-medium">
+                <Send size={18} /> Envoyer
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 px-3.5 pb-1 pt-2.5 text-[#000000e6]">
+              <Heart size={24} />
+              <MessageCircle size={24} />
+              <Send size={24} />
+              <Bookmark size={24} className="ml-auto" />
+            </div>
+            <div className="px-3.5 pb-0.5 text-sm font-semibold">1 248 j'aime</div>
+            <div className="flex items-baseline gap-1.5 px-3.5 pb-1">
+              <span className="shrink-0 text-sm font-semibold">votre_compte</span>
+              <textarea
+                ref={captionRef}
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={1}
+                placeholder="Ecrivez votre legende..."
+                className="block flex-1 resize-none border-0 bg-transparent p-0 text-sm leading-snug text-[#000000e6] placeholder:text-[#00000066] focus:outline-none focus:ring-0"
+              />
+            </div>
+            <div className="px-3.5 pb-3 pt-1 text-[10px] uppercase tracking-wide text-[#00000099]">
+              Il y a 18 heures
+            </div>
+          </>
+        )}
       </div>
 
       {/* Outils : couleurs + edition + export. */}
@@ -535,6 +622,18 @@ const CarouselViewer = memo(function CarouselViewer({ raw }: { raw: string }) {
         >
           {editing ? <Check size={14} /> : <Pencil size={14} />}
           {editing ? 'Terminer' : 'Editer le texte'}
+        </button>
+        <button
+          type="button"
+          onClick={copyCaption}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-text-secondary',
+            'transition-colors duration-150 hover:bg-surface-tertiary hover:text-text-primary',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+          )}
+        >
+          {captionCopied ? <Check size={14} /> : <Copy size={14} />}
+          {captionCopied ? 'Legende copiee' : 'Copier la legende'}
         </button>
         <ExportMenu
           icon={<FileDown size={14} />}
