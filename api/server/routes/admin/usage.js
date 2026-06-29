@@ -365,6 +365,7 @@ router.get('/', async (req, res) => {
     // try/catch : si la collection/les champs different, on renvoie null sans casser le reste.
     let conversion = null;
     let revenue = null;
+    let payantsUsage = null;
     try {
       const PRICE_CHF = 17;
       const grants = await Transaction.find({
@@ -473,6 +474,53 @@ router.get('/', async (req, res) => {
           totalUsers ? Math.round(((paidCount * PRICE_CHF) / totalUsers) * 100) / 100 : 0,
         prixMensuel: PRICE_CHF,
       };
+
+      // === Cockpit ABONNES PAYANTS : memes indicateurs cles, limites au segment payant ===
+      // Messages : message.user = String -> on filtre sur converterIds (chaines). Periode appliquee.
+      const payMsgMatch = {
+        isCreatedByUser: true,
+        user: { $in: converterIds },
+        createdAt: since ? { $gte: since } : { $type: 'date' },
+      };
+      const payMsgByDay = paidCount
+        ? await Message.aggregate([{ $match: payMsgMatch }, { $group: { _id: dayExpr, c: { $sum: 1 } } }])
+        : [];
+      const payMsgMap = {};
+      payMsgByDay.forEach((r) => {
+        payMsgMap[r._id] = r.c;
+      });
+      const payMessagesInPeriod = payMsgByDay.reduce((s, r) => s + r.c, 0);
+      const payActiveInPeriod = paidCount ? (await Message.distinct('user', payMsgMatch)).length : 0;
+
+      // Credits consommes : transactions de depense (tokenValue) des payants. user = ObjectId.
+      const paySpendMatch = {
+        user: { $in: converterObjIds },
+        tokenType: { $in: ['prompt', 'completion'] },
+        createdAt: since ? { $gte: since } : { $type: 'date' },
+      };
+      const paySpendByDay = paidCount
+        ? await Transaction.aggregate([
+            { $match: paySpendMatch },
+            { $group: { _id: dayExpr, v: { $sum: { $abs: '$tokenValue' } } } },
+          ])
+        : [];
+      const payTokMap = {};
+      paySpendByDay.forEach((r) => {
+        payTokMap[r._id] = Math.round(r.v || 0);
+      });
+      const payTokensInPeriod = paySpendByDay.reduce((s, r) => s + (r.v || 0), 0);
+
+      payantsUsage = {
+        count: paidCount,
+        activeInPeriod: payActiveInPeriod,
+        messagesInPeriod: payMessagesInPeriod,
+        perActiveUser: payActiveInPeriod
+          ? Math.round((payMessagesInPeriod / payActiveInPeriod) * 10) / 10
+          : 0,
+        tokensInPeriod: Math.round(payTokensInPeriod),
+        messagesDaily: windowDays.map((k) => ({ date: k, count: payMsgMap[k] || 0 })),
+        tokensDaily: windowDays.map((k) => ({ date: k, count: payTokMap[k] || 0 })),
+      };
     } catch (convErr) {
       logger.warn(`[admin/usage] conversion/revenu indisponible : ${convErr.message}`);
     }
@@ -490,6 +538,7 @@ router.get('/', async (req, res) => {
       retention,
       conversion,
       revenue,
+      payantsUsage,
       deepActivation,
       goldenRule,
       timeToValue,

@@ -52,6 +52,15 @@ type Stats = {
     byCohort: { month: string; signups: number; converted: number }[];
   } | null;
   revenue: { payants: number; mrrEstime: number; arpu: number; prixMensuel: number } | null;
+  payantsUsage: {
+    count: number;
+    activeInPeriod: number;
+    messagesInPeriod: number;
+    perActiveUser: number;
+    tokensInPeriod: number;
+    messagesDaily: Daily[];
+    tokensDaily: Daily[];
+  } | null;
   deepActivation: { base: number; count: number };
   goldenRule: {
     deepBase: number;
@@ -509,6 +518,54 @@ export default function UsageDashboard() {
                     value={`${data.revenue.arpu} CHF`}
                     sub="par inscrit"
                   />
+                </div>
+              </section>
+            ) : null}
+
+            {data.payantsUsage && data.payantsUsage.count > 0 ? (
+              <section>
+                <h2 className="mb-1 text-[13px] font-medium text-text-secondary">
+                  Abonnés payants, usage
+                </h2>
+                <p className="mb-3 text-xs text-text-tertiary">
+                  Les mêmes indicateurs clés, mais limités aux comptes payants.
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <Card
+                    icon={<CreditCard size={15} />}
+                    label="Abonnés"
+                    value={fmt(data.payantsUsage.count)}
+                  />
+                  <Card
+                    icon={<Activity size={15} />}
+                    label="Actifs (période)"
+                    value={fmt(data.payantsUsage.activeInPeriod)}
+                    sub="au moins 1 message"
+                  />
+                  <Card
+                    icon={<MessageSquare size={15} />}
+                    label="Messages (période)"
+                    value={fmt(data.payantsUsage.messagesInPeriod)}
+                    sub={`${data.payantsUsage.perActiveUser} / abonné actif`}
+                  />
+                  <Card
+                    icon={<Coins size={15} />}
+                    label="Crédits consommés"
+                    value={fmtM(data.payantsUsage.tokensInPeriod)}
+                    sub="sur la période"
+                  />
+                </div>
+                <div className="mt-5">
+                  <div className="mb-3 text-[13px] font-medium text-text-secondary">
+                    Messages par jour (payants)
+                  </div>
+                  <DailyChart data={data.payantsUsage.messagesDaily} />
+                </div>
+                <div className="mt-5">
+                  <div className="mb-3 text-[13px] font-medium text-text-secondary">
+                    Crédits consommés par jour (payants)
+                  </div>
+                  <DailyChart data={data.payantsUsage.tokensDaily} />
                 </div>
               </section>
             ) : null}
