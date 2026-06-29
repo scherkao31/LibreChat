@@ -497,8 +497,8 @@ export default function UsageDashboard() {
                   Revenu (estimation)
                 </h2>
                 <p className="mb-3 text-xs text-text-tertiary">
-                  Estimation simple : suppose tous les payants encore actifs (le statut d'abonnement
-                  n'est pas dans les données). À affiner quand la base payante grossit.
+                  Basé sur les abonnements actifs. Estimation au prix de base, sans le pricing de
+                  groupe. À affiner quand la base payante grossit.
                 </p>
                 <div className="grid grid-cols-3 gap-3">
                   <Card

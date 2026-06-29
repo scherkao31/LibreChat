@@ -1,6 +1,7 @@
 const express = require('express');
 const { logger } = require('@librechat/data-schemas');
 const { requireJwtAuth } = require('~/server/middleware');
+const mongoose = require('mongoose');
 const { User, Message, Balance, Transaction } = require('~/db/models');
 
 const router = express.Router();
@@ -139,7 +140,7 @@ router.get('/', async (req, res) => {
 
     // Consommation des credits (etat courant via balances).
     const balances = await Balance.find(meId ? { user: { $ne: meId } } : {})
-      .select('user tokenCredits')
+      .select('user tokenCredits refillAmount')
       .lean();
     const bucketDefs = [
       { label: '0 a 25%', min: 0, max: 25 },
@@ -168,9 +169,11 @@ router.get('/', async (req, res) => {
 
     // === Profils PAR COMPTE (jointure perUser <-> users <-> balances, par id) ===
     const balanceByUser = {};
+    const refillByUser = {};
     balances.forEach((b) => {
       balanceByUser[String(b.user)] =
         typeof b.tokenCredits === 'number' ? b.tokenCredits : START_BALANCE;
+      refillByUser[String(b.user)] = Number(b.refillAmount) || 0;
     });
     const nowMs = now.getTime();
     const profiles = usersList.map((u) => {
@@ -361,38 +364,53 @@ router.get('/', async (req, res) => {
     };
 
     // === BLOC 2 (conversion) + BLOC 6 (revenu) via les transactions de credits ===
-    // Un payant = >=1 transaction tokenType 'credits' (octroi du backend Stripe). Isole dans un
-    // try/catch : si la collection/les champs different, on renvoie null sans casser le reste.
+    // Payant = abonnement dans la collection du backend Stripe `lancya_subscriptions` (source
+    // autoritaire et datee). Le backend ECRIT directement le solde (balances.tokenCredits +
+    // refillAmount) et NE cree PAS de transaction de credits. Isole dans un try/catch.
     let conversion = null;
     let revenue = null;
     let payantsUsage = null;
     try {
       const PRICE_CHF = 17;
-      const grants = await Transaction.find({
-        ...(meId ? { user: { $ne: meId } } : {}),
-        tokenType: 'credits',
-      })
-        .select('user tokenValue rawAmount createdAt')
-        .lean();
+      const subs = await mongoose.connection.db
+        .collection('lancya_subscriptions')
+        .find({})
+        .toArray();
 
-      // 1ere conversion par compte (date + plan via le montant : >=10M = premium, sinon pro).
+      // conv : userId (String) -> { date = 1ere souscription, active = a un abonnement actif }.
       const conv = {};
-      grants.forEach((g) => {
-        const amount = Math.max(Number(g.tokenValue) || 0, Number(g.rawAmount) || 0);
-        if (amount <= 0 || !g.createdAt) {
+      subs.forEach((s) => {
+        if (!s.userId || String(s.userId) === meStr) {
           return;
         }
-        const id = String(g.user);
-        const ts = new Date(g.createdAt).getTime();
-        if (!conv[id] || ts < conv[id].date) {
-          conv[id] = { date: ts, plan: amount >= 10000000 ? 'premium' : 'pro' };
+        const id = String(s.userId);
+        const created = s.createdAt ? new Date(s.createdAt).getTime() : null;
+        const active = s.status === 'active';
+        if (!conv[id]) {
+          conv[id] = { date: created ?? Date.now(), active };
+        } else {
+          if (created != null && created < conv[id].date) {
+            conv[id].date = created;
+          }
+          conv[id].active = conv[id].active || active;
         }
       });
       const converterIds = Object.keys(conv);
       const paidCount = converterIds.length;
+      const activePaid = converterIds.filter((id) => conv[id].active).length;
+      // Plan via le solde : refillAmount = allocation du plan (>=10M premium, sinon pro).
+      const planOf = (id) => (refillByUser[id] >= 10000000 ? 'premium' : 'pro');
 
       // Conso du gratuit AVANT conversion = somme des |tokenValue| de depense avant la date.
-      const converterObjIds = grants.filter((g) => conv[String(g.user)]).map((g) => g.user);
+      const converterObjIds = converterIds
+        .map((id) => {
+          try {
+            return new mongoose.Types.ObjectId(id);
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
       const spend = paidCount
         ? await Transaction.find({
             user: { $in: converterObjIds },
@@ -453,8 +471,8 @@ router.get('/', async (req, res) => {
         paidCount,
         rate: totalUsers ? Math.round((paidCount / totalUsers) * 1000) / 10 : 0,
         byPlan: {
-          pro: converterIds.filter((id) => conv[id].plan === 'pro').length,
-          premium: converterIds.filter((id) => conv[id].plan === 'premium').length,
+          pro: converterIds.filter((id) => planOf(id) === 'pro').length,
+          premium: converterIds.filter((id) => planOf(id) === 'premium').length,
         },
         medianTimeToConvDays: Math.round(median(ttcDays) * 10) / 10,
         medianConsoAtConvPct: Math.round(median(consoAtConv)),
@@ -466,12 +484,12 @@ router.get('/', async (req, res) => {
         byCohort,
       };
 
-      // BLOC 6 : revenu (ESTIMATION, suppose tous les payants encore actifs ; sans statut d'abonnement).
+      // BLOC 6 : revenu base sur les abonnements ACTIFS (statut 'active' dans lancya_subscriptions).
+      // Estimation : prix de base par abonnement, sans tenir compte du pricing de groupe.
       revenue = {
-        payants: paidCount,
-        mrrEstime: paidCount * PRICE_CHF,
-        arpu:
-          totalUsers ? Math.round(((paidCount * PRICE_CHF) / totalUsers) * 100) / 100 : 0,
+        payants: activePaid,
+        mrrEstime: activePaid * PRICE_CHF,
+        arpu: totalUsers ? Math.round(((activePaid * PRICE_CHF) / totalUsers) * 100) / 100 : 0,
         prixMensuel: PRICE_CHF,
       };
 
