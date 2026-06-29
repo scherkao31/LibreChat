@@ -371,6 +371,7 @@ export type TUpdateChatProjectRequest = Partial<TCreateChatProjectRequest> & {
   projectId: string;
   fiche?: TChatProjectFiche;
   fileIds?: string[];
+  followedThreads?: TChatProjectFollowedThread[];
   agendaEvents?: TChatProjectAgendaEvent[];
   instructions?: string;
 };

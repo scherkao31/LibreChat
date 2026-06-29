@@ -862,6 +862,122 @@ router.post('/:projectId/check-agenda', async (req, res) => {
   }
 });
 
+/**
+ * « Verifier les mails » : recupere des mails recents du connecteur email (appel direct), puis un
+ * prompt selectionne ceux LIES au contexte du dossier, et on les AJOUTE aux fils suivis (dedup, sans
+ * ecraser ceux attaches a la main). Bouton declenche par l'utilisateur. Renvoie le projet maj.
+ */
+router.post('/:projectId/check-emails', async (req, res) => {
+  const userId = req.user?.id ?? req.user?._id?.toString() ?? '';
+  const { projectId } = req.params;
+  try {
+    const project = await db.getChatProject(userId, projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const url =
+      req.config?.mcpServers?.email?.url || 'https://email-mcp-production-fb08.up.railway.app/mcp';
+    const mcpKey = `${Constants.mcp_prefix}email`;
+    const imapUser = await getUserPluginAuthValue(userId, 'IMAP_USER', false, mcpKey);
+    const imapPass = await getUserPluginAuthValue(userId, 'IMAP_PASS', false, mcpKey);
+    if (!imapUser || !imapPass) {
+      return res.status(400).json({ error: 'Messagerie non connectée' });
+    }
+    const resultText = await callConnectorTool(
+      url,
+      { 'X-Imap-User': imapUser, 'X-Imap-Pass': imapPass, 'X-Imap-Host': 'mail.infomaniak.com' },
+      'search_emails',
+      { folder: 'INBOX', limit: 40 },
+    );
+    let rawEmails;
+    try {
+      rawEmails = JSON.parse(resultText);
+    } catch {
+      logger.warn(`[projects] check-emails: resultat non-JSON: ${String(resultText).slice(0, 200)}`);
+      return res
+        .status(502)
+        .json({ error: String(resultText).slice(0, 300) || 'Réponse messagerie invalide' });
+    }
+    const allEmails = Array.isArray(rawEmails) ? rawEmails : [];
+
+    let selected = [];
+    if (allEmails.length > 0) {
+      const list = allEmails
+        .map(
+          (e, i) =>
+            `${i} : ${String(e?.subject ?? '(sans objet)').slice(0, 140)} — de ${String(e?.from ?? '').slice(0, 90)}`,
+        )
+        .join('\n');
+      const system =
+        'Tu selectionnes, parmi une liste d\'emails, ceux qui sont LIES a un dossier de travail precis, a partir du contexte du dossier (nom du client, personnes, institution, sujets, demarches). Inclus un email DES QU\'UN LIEN PLAUSIBLE existe (meme client, personne, institution, sujet, demarche). Exclus uniquement ce qui n\'a manifestement AUCUN rapport (newsletters, publicites, sujets etrangers au dossier). Reponds UNIQUEMENT par un JSON {"pertinents": [liste des index lies]}, sans aucun autre texte.';
+      const userMsg =
+        `Contexte du dossier :\n${projectContextText(project)}\n\n` +
+        `Emails recents (index : objet — expediteur) :\n${list}\n\n` +
+        `Quels index sont lies a ce dossier ? Reponds {"pertinents": [...]}.`;
+      try {
+        const llm = await callLancyaModel({
+          system,
+          user: userMsg,
+          maxTokens: 2500,
+          temperature: 0,
+        });
+        logger.info(`[projects] check-emails LLM brut: ${String(llm ?? '').slice(0, 300)}`);
+        const parsed = extractJson(llm);
+        const idxSet = new Set(
+          (Array.isArray(parsed?.pertinents) ? parsed.pertinents : []).filter((n) =>
+            Number.isInteger(n),
+          ),
+        );
+        selected = allEmails.filter((_, i) => idxSet.has(i));
+      } catch (err) {
+        logger.warn(
+          `[projects] check-emails: selection LLM echouee (${err.message}), repli sur le nom du dossier`,
+        );
+        const q = String(project.name ?? '').trim().toLowerCase();
+        selected = q
+          ? allEmails.filter((e) => `${e?.subject ?? ''} ${e?.from ?? ''}`.toLowerCase().includes(q))
+          : [];
+      }
+    }
+
+    const existing = Array.isArray(project.followedThreads) ? project.followedThreads : [];
+    const norm = (s) => String(s || '').trim().toLowerCase();
+    const keyOf = (t) =>
+      norm(t.messageId) ? `mid:${norm(t.messageId)}` : `subj:${norm(t.subject)}|${norm(t.from)}`;
+    const seen = new Set(existing.map(keyOf));
+    const stamp = Date.now();
+    const toAdd = [];
+    selected.forEach((e, i) => {
+      const subject = String(e?.subject ?? '').trim().slice(0, 500);
+      if (!subject) {
+        return;
+      }
+      const thread = {
+        subject,
+        from: String(e?.from ?? '').trim().slice(0, 320),
+        messageId: String(e?.messageId ?? '').trim().slice(0, 1000),
+      };
+      const k = keyOf(thread);
+      if (seen.has(k)) {
+        return;
+      }
+      seen.add(k);
+      toAdd.push({ id: `t-${stamp}-${i}`, ...thread, note: '', createdAt: new Date() });
+    });
+    const followedThreads = [...toAdd, ...existing].slice(0, 100);
+    logger.info(
+      `[projects] check-emails: ${allEmails.length} recupere(s), ${selected.length} retenu(s), ${toAdd.length} ajoute(s) pour "${project.name}"`,
+    );
+    const updated = await db.updateChatProject(userId, projectId, { followedThreads });
+    return res.status(200).json(updated);
+  } catch (error) {
+    logger.error('[projects] check-emails error', error);
+    return res
+      .status(500)
+      .json({ error: error.message || 'Erreur lors de la verification des mails' });
+  }
+});
+
 router.get('/:projectId', handlers.getProject);
 router.patch('/:projectId', handlers.updateProject);
 router.delete('/:projectId', handlers.deleteProject);

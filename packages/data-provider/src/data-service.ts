@@ -872,6 +872,11 @@ export function checkProjectAgenda(projectId: string): Promise<t.TChatProject> {
   return request.post(endpoints.projectCheckAgenda(projectId), {});
 }
 
+/** « Verifier les mails » : recupere les mails lies au dossier et les ajoute aux fils suivis ; renvoie le projet. */
+export function checkProjectEmails(projectId: string): Promise<t.TChatProject> {
+  return request.post(endpoints.projectCheckEmails(projectId), {});
+}
+
 export function assignConversationToProject(
   payload: t.TAssignConversationToProjectRequest,
 ): Promise<t.TAssignConversationToProjectResponse> {
